@@ -486,6 +486,8 @@ void ImGui::ShowDemoWindow(bool* p_open)
             }
             ImGui::CheckboxFlags("io.ConfigFlags: NoMouseCursorChange", &io.ConfigFlags, ImGuiConfigFlags_NoMouseCursorChange);
             ImGui::SameLine(); HelpMarker("Instruct backend to not alter mouse cursor shape and visibility.");
+            ImGui::CheckboxFlags("io.ConfigFlags: NoKerning", &io.ConfigFlags, ImGuiConfigFlags_NoKerning);
+            ImGui::SameLine(); HelpMarker("Instruct imgui to disable kerning when rendering and measuring text.");
 
             ImGui::CheckboxFlags("io.ConfigFlags: DockingEnable", &io.ConfigFlags, ImGuiConfigFlags_DockingEnable);
             ImGui::SameLine();
@@ -5889,7 +5891,7 @@ static void ShowDemoWindowMisc()
                 ImGui::SetNextFrameWantCaptureMouse(capture_override_mouse == 1);
             if (ImGui::IsItemHovered() && capture_override_keyboard != -1)
                 ImGui::SetNextFrameWantCaptureKeyboard(capture_override_keyboard == 1);
-            
+
             ImGui::TreePop();
         }
 
