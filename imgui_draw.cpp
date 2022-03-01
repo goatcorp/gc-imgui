@@ -3158,6 +3158,7 @@ ImFont::ImFont()
     EllipsisChar = (ImWchar)-1;
     DotChar = (ImWchar)-1;
     FallbackGlyph = NULL;
+    FallbackHotData = NULL;
     ContainerAtlas = NULL;
     ConfigData = NULL;
     ConfigDataCount = 0;
@@ -3181,6 +3182,7 @@ void    ImFont::ClearOutputData()
     IndexedHotData.clear();
     IndexLookup.clear();
     FallbackGlyph = NULL;
+    FallbackHotData = NULL;
     ContainerAtlas = NULL;
     DirtyLookupTables = true;
     Ascent = Descent = 0.0f;
@@ -3280,6 +3282,7 @@ void ImFont::BuildLookupTable()
             FallbackChar = (ImWchar)FallbackGlyph->Codepoint;
         }
     }
+    FallbackHotData = &IndexedHotData.Data[FallbackChar];
 
     // Sort the items, preserving the order of insertion order when there are multiple pairs of same left and right characters.
     ImVector<ImFont_BuildLookupTable_ImFontKerningPairWithOrder> sorted_pairs;
@@ -3550,8 +3553,7 @@ const char* ImFont::CalcWordWrapPositionA(float scale, const char* text, const c
             }
         }
 
-        const int actual_c = (int)c >= IndexLookup.Size || IndexLookup.Data[c] == (ImWchar)-1 ? FallbackChar : c;
-        const ImFontGlyphHotData* c_info = &IndexedHotData.Data[actual_c];
+        const ImFontGlyphHotData* c_info = (int)c >= IndexedHotData.Size ? FallbackHotData : &IndexedHotData.Data[c];
         const float char_width = c_info->AdvanceX;
 
         if (ImCharIsBlankW(c))
@@ -3599,7 +3601,7 @@ const char* ImFont::CalcWordWrapPositionA(float scale, const char* text, const c
             else if (c_info->KerningPairCount)
                 line_width += ImFont_GetDistanceAdjustmentForPairBetween(this, (ImWchar)prev_c, (ImWchar)c, c_info->KerningPairOffset, c_info->KerningPairOffset + c_info->KerningPairCount - 1);
         }
-        prev_c = actual_c;
+        prev_c = c;
         s = next_s;
     }
 
@@ -3639,7 +3641,7 @@ ImVec2 ImFont::CalcTextSizeA(float size, float max_width, float wrap_width, cons
             {
                 // End of line or text; fill the remaining width if last character's bounding width is wider than its advance width.
                 if (prev_c)
-                    line_width += IndexedHotData.Data[prev_c].ExtraForMaxOccupyWidth;
+                    line_width += (int)prev_c >= IndexedHotData.Size ? FallbackHotData->ExtraForMaxOccupyWidth : IndexedHotData.Data[prev_c].ExtraForMaxOccupyWidth;
                 prev_c = 0;
 
                 if (text_size.x < line_width)
@@ -3678,7 +3680,7 @@ ImVec2 ImFont::CalcTextSizeA(float size, float max_width, float wrap_width, cons
             {
                 // End of line; fill the remaining width if last character's bounding width is wider than its advance width.
                 if (prev_c)
-                    line_width += IndexedHotData.Data[prev_c].ExtraForMaxOccupyWidth;
+                    line_width += (int)prev_c >= IndexedHotData.Size ? FallbackHotData->ExtraForMaxOccupyWidth : IndexedHotData.Data[prev_c].ExtraForMaxOccupyWidth;
                 prev_c = 0;
 
                 text_size.x = ImMax(text_size.x, line_width);
@@ -3692,11 +3694,10 @@ ImVec2 ImFont::CalcTextSizeA(float size, float max_width, float wrap_width, cons
                 continue;
         }
 
-        const int actual_c = (int)c >= IndexLookup.Size || IndexLookup.Data[c] == (ImWchar)-1 ? FallbackChar : c;
-        const ImFontGlyphHotData* c_info = &IndexedHotData.Data[actual_c];
+        const ImFontGlyphHotData* c_info = (int)c >= IndexedHotData.Size ? FallbackHotData : &IndexedHotData.Data[c];
         const float char_width = c_info->AdvanceX * scale;
 
-        // Adding this character (actual_c) will make it overflow past max_width, so don't do it.
+        // Adding this character (c) will make it overflow past max_width, so don't do it.
         if (line_width + char_width >= max_width)
         {
             s = prev_s;
@@ -3710,13 +3711,13 @@ ImVec2 ImFont::CalcTextSizeA(float size, float max_width, float wrap_width, cons
             else if (c_info->KerningPairCount)
                 line_width += ImFont_GetDistanceAdjustmentForPairBetween(this, (ImWchar)prev_c, (ImWchar)c, c_info->KerningPairOffset, c_info->KerningPairOffset + c_info->KerningPairCount - 1) * scale;
         }
-        prev_c = actual_c;
+        prev_c = c;
         line_width += char_width;
     }
 
     // End of text; fill the remaining width if last character's bounding width is wider than its advance width.
     if (prev_c)
-        line_width += IndexedHotData.Data[prev_c].ExtraForMaxOccupyWidth;
+        line_width += (int)prev_c >= IndexedHotData.Size ? FallbackHotData->ExtraForMaxOccupyWidth : IndexedHotData.Data[prev_c].ExtraForMaxOccupyWidth;
 
     if (text_size.x < line_width)
         text_size.x = line_width;
@@ -3877,7 +3878,7 @@ void ImFont::RenderText(ImDrawList* draw_list, float size, const ImVec2& pos, Im
             {
                 x += FrequentKerningPairs.Data[prev_c * ImFont_FrequentKerningPairs_MaxCodepoint + c] * scale;
             }
-            else
+            else if ((int)glyph->Codepoint < IndexedHotData.Size)
             {
                 const ImFontGlyphHotData* c_info = &IndexedHotData.Data[glyph->Codepoint];
                 if (c_info->KerningPairCount)
