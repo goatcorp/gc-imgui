@@ -1922,6 +1922,7 @@ ImFontConfig::ImFontConfig()
     OversampleV = 1;
     GlyphMaxAdvanceX = FLT_MAX;
     RasterizerMultiply = 1.0f;
+    RasterizerGamma = 1.4f;
     EllipsisChar = (ImWchar)-1;
 }
 
@@ -2304,13 +2305,10 @@ bool    ImFontAtlas::Build()
     return builder_io->FontBuilder_Build(this);
 }
 
-void    ImFontAtlasBuildMultiplyCalcLookupTable(unsigned char out_table[256], float in_brighten_factor)
+void    ImFontAtlasBuildMultiplyCalcLookupTable(unsigned char out_table[256], float in_brighten_factor, float gamma_factor)
 {
     for (unsigned int i = 0; i < 256; i++)
-    {
-        unsigned int value = (unsigned int)(i * in_brighten_factor);
-        out_table[i] = value > 255 ? 255 : (value & 0xFF);
-    }
+        out_table[i] = (unsigned char)(ImPow(ImClamp(i * in_brighten_factor / 255.0f, 0.0f, 1.0f), 1.0f / gamma_factor) * 255.0f);
 }
 
 void    ImFontAtlasBuildMultiplyRectAlpha8(const unsigned char table[256], unsigned char* pixels, int x, int y, int w, int h, int stride)
@@ -2606,8 +2604,9 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
             continue;
 
         unsigned char multiply_table[256];
-        if (cfg.RasterizerMultiply != 1.0f)
-            ImFontAtlasBuildMultiplyCalcLookupTable(multiply_table, cfg.RasterizerMultiply);
+        const bool useMultiply = cfg.RasterizerMultiply != 1.0f || cfg.RasterizerGamma != 1.0f;
+        if (useMultiply)
+            ImFontAtlasBuildMultiplyCalcLookupTable(multiply_table, cfg.RasterizerMultiply, cfg.RasterizerGamma);
 
         for (int per_texture_i = 0; per_texture_i < src_tmp.PerTextureData.Size; per_texture_i++)
         {
@@ -2624,7 +2623,7 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
             stbtt_PackFontRangesRenderIntoRects(&pack_contexts[per_texture.TextureIndex], &src_tmp.FontInfo, &packrange, 1, per_texture.Rects);
 
             // Apply multiply operator
-            if (cfg.RasterizerMultiply != 1.0f) {
+            if (useMultiply) {
                 for (stbrp_rect *r = per_texture.Rects; r < per_texture.RectsTo; r++)
                     if (r->was_packed)
                         ImFontAtlasBuildMultiplyRectAlpha8(multiply_table, atlas->Textures[per_texture.TextureIndex].TexPixelsAlpha8, r->x, r->y, r->w, r->h, atlas->TexWidth * 1);
