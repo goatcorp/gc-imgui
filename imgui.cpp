@@ -3886,7 +3886,7 @@ static ImDrawList* GetViewportDrawList(ImGuiViewportP* viewport, size_t drawlist
     if (viewport->DrawListsLastFrame[drawlist_no] != g.FrameCount)
     {
         draw_list->_ResetForNewFrame();
-        draw_list->PushTextureID(g.IO.Fonts->Textures[0].TexID);
+        draw_list->PushTextureID(g.IO.Fonts->Textures[g.IO.Fonts->GetCustomRectByIndex(g.IO.Fonts->PackIdLines)->TextureIndex].TexID);
         draw_list->PushClipRect(viewport->Pos, viewport->Pos + viewport->Size, false);
         viewport->DrawListsLastFrame[drawlist_no] = g.FrameCount;
     }
@@ -6950,7 +6950,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
 
         // Setup draw list and outer clipping rectangle
         IM_ASSERT(window->DrawList->CmdBuffer.Size == 1 && window->DrawList->CmdBuffer[0].ElemCount == 0);
-        window->DrawList->PushTextureID(g.Font->ContainerAtlas->Textures[0].TexID);
+        window->DrawList->PushTextureID(g.Font->ContainerAtlas->Textures[g.IO.Fonts->GetCustomRectByIndex(g.IO.Fonts->PackIdLines)->TextureIndex].TexID);
         PushClipRect(host_rect.Min, host_rect.Max, false);
 
         // Child windows can render their decoration (bg color, border, scrollbars, etc.) within their parent to save a draw call (since 1.71)

@@ -2759,18 +2759,22 @@ void ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, ImVector<stbtt_pack_con
         user_rects[i].X = 0xFFFF;  // Reset output
 
     ImVector<stbrp_rect> pack_rects;
-    pack_rects.reserve(user_rects.Size);
+    pack_rects.resize(user_rects.Size);
 
     while (true)
     {
         for (int i = 0; i < user_rects.Size; i++)
         {
-            if (user_rects[i].X != 0xFFFF)
-                continue;
-
-            pack_rects.push_back(stbrp_rect());
-            pack_rects.back().w = user_rects[i].Width;
-            pack_rects.back().h = user_rects[i].Height;
+            if (user_rects[i].X == 0xFFFF)
+            {
+                pack_rects[i].w = user_rects[i].Width;
+                pack_rects[i].h = user_rects[i].Height;
+            }
+            else
+            {
+                pack_rects[i].w = 0;
+                pack_rects[i].h = 0;
+            }
         }
 
         if (pack_rects.empty())
@@ -2785,14 +2789,16 @@ void ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, ImVector<stbtt_pack_con
         bool any = false;
         for (int i = 0; i < pack_rects.Size; i++)
         {
-            if (!pack_rects[i].was_packed)
+            const auto& pack_rect = pack_rects[i];
+            auto& user_rect = user_rects[i];
+            if (!pack_rect.was_packed || pack_rect.w == 0 || pack_rect.h == 0)
                 continue;
 
             any = true;
-            user_rects[i].X = (unsigned short)pack_rects[i].x;
-            user_rects[i].Y = (unsigned short)pack_rects[i].y;
-            user_rects[i].TextureIndex = pack_contexts.size() - 1;
-            IM_ASSERT(pack_rects[i].w == user_rects[i].Width && pack_rects[i].h == user_rects[i].Height);
+            user_rect.X = (unsigned short)pack_rect.x;
+            user_rect.Y = (unsigned short)pack_rect.y;
+            user_rect.TextureIndex = pack_contexts.size() - 1;
+            IM_ASSERT(pack_rect.w == user_rect.Width && pack_rect.h == user_rect.Height);
         }
 
         if (all)
