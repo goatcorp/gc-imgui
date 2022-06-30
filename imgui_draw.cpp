@@ -2765,20 +2765,28 @@ void ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, ImVector<stbtt_pack_con
     {
         for (int i = 0; i < user_rects.Size; i++)
         {
-            if (user_rects[i].X == 0xFFFF)
-            {
-                pack_rects[i].w = user_rects[i].Width;
-                pack_rects[i].h = user_rects[i].Height;
-            }
-            else
+            if (user_rects[i].IsPacked())
             {
                 pack_rects[i].w = 0;
                 pack_rects[i].h = 0;
             }
+            else
+            {
+                if (user_rects[i].Width == 0 || user_rects[i].Height == 0)
+                {
+                    user_rects[i].X = 0;
+                    user_rects[i].Y = 0;
+                    user_rects[i].TextureIndex = 0;
+                    pack_rects[i].w = 0;
+                    pack_rects[i].h = 0;
+                }
+                else
+                {
+                    pack_rects[i].w = user_rects[i].Width;
+                    pack_rects[i].h = user_rects[i].Height;
+                }
+            }
         }
-
-        if (pack_rects.empty())
-            return;
 
         const bool fresh = pack_contexts.back().pack_info == NULL;
         if (fresh)
