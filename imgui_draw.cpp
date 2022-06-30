@@ -2026,7 +2026,6 @@ void    ImFontAtlas::ClearTexData()
         if (Textures[i].TexPixelsRGBA32)
             IM_FREE(Textures[i].TexPixelsRGBA32);
     }
-    Textures.clear();
     TexPixelsUseColors = false;
     // Important: we leave TexReady untouched
 }
@@ -2118,6 +2117,7 @@ ImFont* ImFontAtlas::AddFont(const ImFontConfig* font_cfg)
     // Invalidate texture
     TexReady = false;
     ClearTexData();
+    Textures.clear();
     return new_font_cfg.DstFont;
 }
 
@@ -2391,11 +2391,11 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
     ImFontAtlasBuildInit(atlas);
 
     // Clear atlas
-    atlas->Textures.clear();
     atlas->TexWidth = atlas->TexHeight = 0;
     atlas->TexUvScale = ImVec2(0.0f, 0.0f);
     atlas->TexUvWhitePixel = ImVec2(0.0f, 0.0f);
     atlas->ClearTexData();
+    atlas->Textures.clear();
 
     // Temporary storage for building
     ImVector<ImFontBuildSrcData> src_tmp_array;
