@@ -2755,71 +2755,64 @@ void ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, ImVector<stbtt_pack_con
     ImVector<ImFontAtlasCustomRect>& user_rects = atlas->CustomRects;
     IM_ASSERT(user_rects.Size >= 1); // We expect at least the default custom rects to be registered, else something went wrong.
 
-    for (int i = 0; i < user_rects.Size; i++)
-        user_rects[i].X = 0xFFFF;  // Reset output
-
     ImVector<stbrp_rect> pack_rects;
-    pack_rects.resize(user_rects.Size);
-
-    while (true)
+    pack_rects.reserve(user_rects.Size);
+    for (int i = 0; i < user_rects.Size; i++)
     {
-        for (int i = 0; i < user_rects.Size; i++)
+        auto& user_rect = user_rects[i];
+        if (user_rect.Width == 0 || user_rect.Height == 0)
         {
-            if (user_rects[i].IsPacked())
-            {
-                pack_rects[i].w = 0;
-                pack_rects[i].h = 0;
-            }
-            else
-            {
-                if (user_rects[i].Width == 0 || user_rects[i].Height == 0)
-                {
-                    user_rects[i].X = 0;
-                    user_rects[i].Y = 0;
-                    user_rects[i].TextureIndex = 0;
-                    pack_rects[i].w = 0;
-                    pack_rects[i].h = 0;
-                }
-                else
-                {
-                    pack_rects[i].w = user_rects[i].Width;
-                    pack_rects[i].h = user_rects[i].Height;
-                }
-            }
+            user_rect.TextureIndex = user_rect.X = user_rect.Y = 0;
         }
+        else
+        {
+            pack_rects.push_back(stbrp_rect());
+            auto& pack_rect = pack_rects.back();
+            pack_rect.w = user_rects[i].Width;
+            pack_rect.h = user_rects[i].Height;
+            pack_rect.id = i;
+        }
+    }
+
+    for (stbrp_rect *rect_ptr = pack_rects.begin(); rect_ptr < pack_rects.end(); )
+    {
+        const int remaining_count = (int)(pack_rects.end() - rect_ptr);
 
         const bool fresh = pack_contexts.back().pack_info == NULL;
         if (fresh)
             stbtt_PackBegin(&pack_contexts.back(), NULL, atlas->TexWidth, atlas->TexHeight, 0, atlas->TexGlyphPadding, NULL);
 
-        const bool all = stbrp_pack_rects((stbrp_context*)pack_contexts.back().pack_info, &pack_rects[0], pack_rects.Size);
+        const bool all = stbrp_pack_rects((stbrp_context*)pack_contexts.back().pack_info, rect_ptr, remaining_count);
 
-        bool any = false;
-        for (int i = 0; i < pack_rects.Size; i++)
+        int packed = 0;
+        for (stbrp_rect *ptr = rect_ptr; ptr < pack_rects.end(); ptr++)
         {
-            const auto& pack_rect = pack_rects[i];
-            auto& user_rect = user_rects[i];
-            if (!pack_rect.was_packed || pack_rect.w == 0 || pack_rect.h == 0)
+            if (!ptr->was_packed)
                 continue;
 
-            any = true;
-            user_rect.X = (unsigned short)pack_rect.x;
-            user_rect.Y = (unsigned short)pack_rect.y;
+            auto& user_rect = user_rects[ptr->id];
+            user_rect.X = (unsigned short)ptr->x;
+            user_rect.Y = (unsigned short)ptr->y;
             user_rect.TextureIndex = pack_contexts.size() - 1;
-            IM_ASSERT(pack_rect.w == user_rect.Width && pack_rect.h == user_rect.Height);
+            packed++;
+            IM_ASSERT(ptr->w == user_rect.Width && ptr->h == user_rect.Height);
         }
+
+        ImQsort(rect_ptr, remaining_count, sizeof stbrp_rect, ImFontAtlasBuildCompareStbrpRectByWasPacked);
+
+        rect_ptr += packed;
 
         if (all)
             return;
 
-        if (fresh && !any)
+        if (fresh && !packed)
         {
             stbtt_PackEnd(&pack_contexts.back());
             pack_contexts.back().pack_info = NULL;
             return;
         }
 
-        if (any && !all)
+        if (packed && !all)
             pack_contexts.push_back(stbtt_pack_context());
     }
 }
