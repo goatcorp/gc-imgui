@@ -2022,9 +2022,15 @@ void    ImFontAtlas::ClearTexData()
     for (int i = 0, i_ = Textures.size(); i < i_; i++)
     {
         if (Textures[i].TexPixelsAlpha8)
+        {
             IM_FREE(Textures[i].TexPixelsAlpha8);
+            Textures[i].TexPixelsAlpha8 = NULL;
+        }
         if (Textures[i].TexPixelsRGBA32)
+        {
             IM_FREE(Textures[i].TexPixelsRGBA32);
+            Textures[i].TexPixelsRGBA32 = NULL;
+        }
     }
     TexPixelsUseColors = false;
     // Important: we leave TexReady untouched
