@@ -1573,7 +1573,7 @@ enum ImGuiConfigFlags_
     ImGuiConfigFlags_NoKerning              = 1 << 6,   // Instruct imgui to ignore kerning when drawing all text.
 
     // [BETA] Docking
-    ImGuiConfigFlags_DockingEnable          = 1 << 6,   // Docking enable flags.
+    ImGuiConfigFlags_DockingEnable          = 1 << 7,   // Docking enable flags.
 
     // [BETA] Viewports
     // When using viewports it is recommended that your default value for ImGuiCol_WindowBg is opaque (Alpha=1.0) so transition to a viewport won't be noticeable.
