@@ -2803,7 +2803,6 @@ void ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, ImVector<stbtt_pack_con
             user_rect.Y = (unsigned short)ptr->y;
             user_rect.TextureIndex = pack_contexts.size() - 1;
             packed++;
-            IM_ASSERT(ptr->w == user_rect.Width && ptr->h == user_rect.Height);
         }
 
         ImQsort(rect_ptr, remaining_count, sizeof stbrp_rect, ImFontAtlasBuildCompareStbrpRectByWasPacked);
