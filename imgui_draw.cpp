@@ -2776,8 +2776,8 @@ void ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, ImVector<stbtt_pack_con
         {
             pack_rects.push_back(stbrp_rect());
             auto& pack_rect = pack_rects.back();
-            pack_rect.w = user_rects[i].Width;
-            pack_rect.h = user_rects[i].Height;
+            pack_rect.w = user_rects[i].Width + 1;
+            pack_rect.h = user_rects[i].Height + 1;
             pack_rect.id = i;
         }
     }
