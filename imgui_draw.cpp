@@ -755,6 +755,11 @@ void ImDrawList::AddPolyline(const ImVec2* points, const int points_count, ImU32
         // We should never hit this, because NewFrame() doesn't set ImDrawListFlags_AntiAliasedLinesUseTex unless ImFontAtlasFlags_NoBakedLines is off
         IM_ASSERT_PARANOID(!use_texture || !(_Data->Font->ContainerAtlas->Flags & ImFontAtlasFlags_NoBakedLines));
 
+        const auto texture_id = GImGui->IO.Fonts->Textures[GImGui->IO.Fonts->GetCustomRectByIndex(GImGui->IO.Fonts->PackIdMouseCursors)->TextureIndex].TexID;
+        const bool push_texture_id = use_texture && texture_id != _CmdHeader.TextureId;
+        if (push_texture_id)
+            PushTextureID(texture_id);
+
         const int idx_count = use_texture ? (count * 6) : (thick_line ? count * 18 : count * 12);
         const int vtx_count = use_texture ? (points_count * 2) : (thick_line ? points_count * 4 : points_count * 3);
         PrimReserve(idx_count, vtx_count);
@@ -947,6 +952,9 @@ void ImDrawList::AddPolyline(const ImVec2* points, const int points_count, ImU32
             }
         }
         _VtxCurrentIdx += (ImDrawIdx)vtx_count;
+
+        if (push_texture_id)
+            PopTextureID();
     }
     else
     {
@@ -3892,10 +3900,15 @@ void ImFont::RenderChar(ImDrawList* draw_list, float size, const ImVec2& pos, Im
     float scale = (size >= 0.0f) ? (size / FontSize) : 1.0f;
     float x = IM_FLOOR(pos.x);
     float y = IM_FLOOR(pos.y);
-    draw_list->PushTextureID(ContainerAtlas->Textures[glyph->TextureIndex].TexID);
+
+    const auto texture_id = ContainerAtlas->Textures[glyph->TextureIndex].TexID;
+    const bool push_texture_id = texture_id != draw_list->_CmdHeader.TextureId;
+    if (push_texture_id)
+        draw_list->PushTextureID(ContainerAtlas->Textures[glyph->TextureIndex].TexID);
     draw_list->PrimReserve(6, 4);
     draw_list->PrimRectUV(ImVec2(x + glyph->X0 * scale, y + glyph->Y0 * scale), ImVec2(x + glyph->X1 * scale, y + glyph->Y1 * scale), ImVec2(glyph->U0, glyph->V0), ImVec2(glyph->U1, glyph->V1), col);
-    draw_list->PopTextureID();
+    if (push_texture_id)
+        draw_list->PopTextureID();
 }
 
 void ImFont::RenderText(ImDrawList* draw_list, float size, const ImVec2& pos, ImU32 col, const ImVec4& clip_rect, const char* text_begin, const char* text_end, float wrap_width, bool cpu_fine_clip) const
@@ -4076,10 +4089,14 @@ void ImFont::RenderText(ImDrawList* draw_list, float size, const ImVec2& pos, Im
                 // Support for untinted glyphs
                 ImU32 glyph_col = glyph->Colored ? col_untinted : col;
 
-                draw_list->PushTextureID(ContainerAtlas->Textures[glyph->TextureIndex].TexID);
+                const auto texture_id = ContainerAtlas->Textures[glyph->TextureIndex].TexID;
+                const bool push_texture_id = texture_id != draw_list->_CmdHeader.TextureId;
+                if (push_texture_id)
+                    draw_list->PushTextureID(ContainerAtlas->Textures[glyph->TextureIndex].TexID);
                 draw_list->PrimReserve(6, 4);
                 draw_list->PrimRectUV(ImVec2(x1, y1), ImVec2(x2, y2), ImVec2(u1, v1), ImVec2(u2, v2), glyph_col);
-                draw_list->PopTextureID();
+                if (push_texture_id)
+                    draw_list->PopTextureID();
             }
         }
         x += char_width;
