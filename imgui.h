@@ -1673,7 +1673,6 @@ enum ImGuiStyleVar_
 {
     // Enum name --------------------- // Member in ImGuiStyle structure (see ImGuiStyle for descriptions)
     ImGuiStyleVar_Alpha,               // float     Alpha
-    ImGuiStyleVar_DisabledAlpha,       // float     DisabledAlpha
     ImGuiStyleVar_WindowPadding,       // ImVec2    WindowPadding
     ImGuiStyleVar_WindowRounding,      // float     WindowRounding
     ImGuiStyleVar_WindowBorderSize,    // float     WindowBorderSize
@@ -1697,6 +1696,7 @@ enum ImGuiStyleVar_
     ImGuiStyleVar_TabRounding,         // float     TabRounding
     ImGuiStyleVar_ButtonTextAlign,     // ImVec2    ButtonTextAlign
     ImGuiStyleVar_SelectableTextAlign, // ImVec2    SelectableTextAlign
+    ImGuiStyleVar_DisabledAlpha,       // float     DisabledAlpha
     ImGuiStyleVar_COUNT
 };
 
@@ -2999,7 +2999,7 @@ struct ImFont
     ImVector<ImFontGlyphHotData>IndexedHotData;     // 12-16 // out //            // Sparse. Various glyph information in a directly indexable way (cache-friendly for CalcTextSize functions which only this this info, and are often bottleneck in large UI).
     ImVector<float>             FrequentKerningPairs;//12-16 // out //            // Kerning pairs between characters in ASCII range.
     float                       FontSize;           // 4     // in  //            // Height of characters/line, set during loading (don't change after loading)
-    
+
     // Members: Hot ~32/48 bytes (for CalcTextSize + render loop)
     ImVector<ImWchar>           IndexLookup;        // 12-16 // out //            // Sparse. Index glyphs by Unicode code-point.
     ImVector<ImFontGlyph>       Glyphs;             // 12-16 // out //            // All glyphs.
