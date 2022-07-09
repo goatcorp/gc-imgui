@@ -1557,11 +1557,11 @@ enum ImGuiNavInput_
 
     // [Internal] Don't use directly! This is used internally to differentiate keyboard from gamepad inputs for behaviors that require to differentiate them.
     // Keyboard behavior that have no corresponding gamepad mapping (e.g. CTRL+TAB) will be directly reading from keyboard keys instead of io.NavInputs[].
+    ImGuiNavInput_KeyMenu_,      // toggle menu                                  // = io.KeyAlt
     ImGuiNavInput_KeyLeft_,      // Move left                                    // = Arrow keys
     ImGuiNavInput_KeyRight_,     // Move right
     ImGuiNavInput_KeyUp_,        // Move up
     ImGuiNavInput_KeyDown_,      // Move down
-    ImGuiNavInput_KeyMenu_,      // Menu, was apparently io.KeyAlt
     ImGuiNavInput_COUNT
 };
 
@@ -1575,10 +1575,10 @@ enum ImGuiConfigFlags_
     ImGuiConfigFlags_NavNoCaptureKeyboard   = 1 << 3,   // Instruct navigation to not set the io.WantCaptureKeyboard flag when io.NavActive is set.
     ImGuiConfigFlags_NoMouse                = 1 << 4,   // Instruct imgui to clear mouse position/buttons in NewFrame(). This allows ignoring the mouse information set by the backend.
     ImGuiConfigFlags_NoMouseCursorChange    = 1 << 5,   // Instruct backend to not alter mouse cursor shape and visibility. Use if the backend cursor changes are interfering with yours and you don't want to use SetMouseCursor() to change mouse cursor. You may want to honor requests from imgui by reading GetMouseCursor() yourself instead.
-    ImGuiConfigFlags_NoKerning              = 1 << 6,   // Instruct imgui to ignore kerning when drawing all text.
+    ImGuiConfigFlags_NoKerning              = 1 << 7,   // Instruct imgui to ignore kerning when drawing all text.
 
     // [BETA] Docking
-    ImGuiConfigFlags_DockingEnable          = 1 << 7,   // Docking enable flags.
+    ImGuiConfigFlags_DockingEnable          = 1 << 6,   // Docking enable flags.
 
     // [BETA] Viewports
     // When using viewports it is recommended that your default value for ImGuiCol_WindowBg is opaque (Alpha=1.0) so transition to a viewport won't be noticeable.
