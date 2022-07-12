@@ -424,6 +424,7 @@ namespace ImGui
     // - Use the style editor (ShowStyleEditor() function) to interactively see what the colors are)
     IMGUI_API ImFont*       GetFont();                                                      // get current font
     IMGUI_API float         GetFontSize();                                                  // get current font size (= height in pixels) of current font with current scale applied
+    IMGUI_API ImTextureID   GetFontTexIdWhitePixel();                                       // get texture ID for a white pixel.
     IMGUI_API ImVec2        GetFontTexUvWhitePixel();                                       // get UV coordinate for a while pixel, useful to draw custom shapes via the ImDrawList API
     IMGUI_API ImU32         GetColorU32(ImGuiCol idx, float alpha_mul = 1.0f);              // retrieve given style color with style alpha applied and optional extra alpha multiplier, packed as a 32-bit value suitable for ImDrawList
     IMGUI_API ImU32         GetColorU32(const ImVec4& col);                                 // retrieve given color with style alpha applied, packed as a 32-bit value suitable for ImDrawList
@@ -2964,8 +2965,10 @@ struct ImFontAtlas
     unsigned int                FontBuilderFlags;   // Shared flags (for all fonts) for custom font builder. THIS IS BUILD IMPLEMENTATION DEPENDENT. Per-font override is also available in ImFontConfig.
 
     // [Internal] Packing data
-    int                         PackIdMouseCursors; // Custom texture rectangle ID for white pixel and mouse cursors
-    int                         PackIdLines;        // Custom texture rectangle ID for baked anti-aliased lines
+    int                         TextureIndexCommon; // Index of texture containing the below.
+    int                         PackIdCommon;       // Custom texture rectangle ID for both of the below.
+    ImFontAtlasCustomRect       RectMouseCursors;   // Custom texture rectangle for white pixel and mouse cursors
+    ImFontAtlasCustomRect       RectLines;          // Custom texture rectangle for baked anti-aliased lines
 
     // [Obsolete]
     //typedef ImFontAtlasCustomRect    CustomRect;         // OBSOLETED in 1.72+
@@ -2999,7 +3002,7 @@ struct ImFont
     ImVector<ImFontGlyphHotData>IndexedHotData;     // 12-16 // out //            // Sparse. Various glyph information in a directly indexable way (cache-friendly for CalcTextSize functions which only this this info, and are often bottleneck in large UI).
     ImVector<float>             FrequentKerningPairs;//12-16 // out //            // Kerning pairs between characters in ASCII range.
     float                       FontSize;           // 4     // in  //            // Height of characters/line, set during loading (don't change after loading)
-    
+
     // Members: Hot ~32/48 bytes (for CalcTextSize + render loop)
     ImVector<ImWchar>           IndexLookup;        // 12-16 // out //            // Sparse. Index glyphs by Unicode code-point.
     ImVector<ImFontGlyph>       Glyphs;             // 12-16 // out //            // All glyphs.
