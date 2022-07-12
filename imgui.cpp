@@ -3887,7 +3887,7 @@ static ImDrawList* GetViewportDrawList(ImGuiViewportP* viewport, size_t drawlist
     {
         draw_list->_ResetForNewFrame();
         // Default texture is the one containing white pixel, which is the center point of default mouse cursor.
-        draw_list->PushTextureID(g.IO.Fonts->Textures[g.IO.Fonts->GetCustomRectByIndex(g.IO.Fonts->PackIdMouseCursors)->TextureIndex].TexID);
+        draw_list->PushTextureID(g.IO.Fonts->Textures[g.IO.Fonts->TextureIndexCommon].TexID);
         draw_list->PushClipRect(viewport->Pos, viewport->Pos + viewport->Size, false);
         viewport->DrawListsLastFrame[drawlist_no] = g.FrameCount;
     }
@@ -6952,7 +6952,7 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         // Setup draw list and outer clipping rectangle
         IM_ASSERT(window->DrawList->CmdBuffer.Size == 1 && window->DrawList->CmdBuffer[0].ElemCount == 0);
         // Default texture is the one containing white pixel, which is the center point of default mouse cursor.
-        window->DrawList->PushTextureID(g.Font->ContainerAtlas->Textures[g.IO.Fonts->GetCustomRectByIndex(g.IO.Fonts->PackIdMouseCursors)->TextureIndex].TexID);
+        window->DrawList->PushTextureID(g.Font->ContainerAtlas->Textures[g.IO.Fonts->TextureIndexCommon].TexID);
         PushClipRect(host_rect.Min, host_rect.Max, false);
 
         // Child windows can render their decoration (bg color, border, scrollbars, etc.) within their parent to save a draw call (since 1.71)
@@ -7424,6 +7424,7 @@ void ImGui::SetCurrentFont(ImFont* font)
     g.FontSize = g.CurrentWindow ? g.CurrentWindow->CalcFontSize() : 0.0f;
 
     ImFontAtlas* atlas = g.Font->ContainerAtlas;
+    g.DrawListSharedData.TexIdCommon = atlas->Textures[atlas->TextureIndexCommon].TexID;
     g.DrawListSharedData.TexUvWhitePixel = atlas->TexUvWhitePixel;
     g.DrawListSharedData.TexUvLines = atlas->TexUvLines;
     g.DrawListSharedData.Font = g.Font;
@@ -7950,6 +7951,11 @@ ImFont* ImGui::GetFont()
 float ImGui::GetFontSize()
 {
     return GImGui->FontSize;
+}
+
+ImTextureID ImGui::GetFontTexIdWhitePixel()
+{
+    return GImGui->DrawListSharedData.TexIdCommon;
 }
 
 ImVec2 ImGui::GetFontTexUvWhitePixel()

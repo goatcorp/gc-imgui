@@ -755,10 +755,9 @@ void ImDrawList::AddPolyline(const ImVec2* points, const int points_count, ImU32
         // We should never hit this, because NewFrame() doesn't set ImDrawListFlags_AntiAliasedLinesUseTex unless ImFontAtlasFlags_NoBakedLines is off
         IM_ASSERT_PARANOID(!use_texture || !(_Data->Font->ContainerAtlas->Flags & ImFontAtlasFlags_NoBakedLines));
 
-        const auto texture_id = GImGui->IO.Fonts->Textures[GImGui->IO.Fonts->GetCustomRectByIndex(GImGui->IO.Fonts->PackIdMouseCursors)->TextureIndex].TexID;
-        const bool push_texture_id = use_texture && texture_id != _CmdHeader.TextureId;
+        const bool push_texture_id = use_texture && _Data->TexIdCommon != _CmdHeader.TextureId;
         if (push_texture_id)
-            PushTextureID(texture_id);
+            PushTextureID(_Data->TexIdCommon);
 
         const int idx_count = use_texture ? (count * 6) : (thick_line ? count * 18 : count * 12);
         const int vtx_count = use_texture ? (points_count * 2) : (thick_line ? points_count * 4 : points_count * 3);
@@ -997,6 +996,9 @@ void ImDrawList::AddConvexPolyFilled(const ImVec2* points, const int points_coun
         return;
 
     const ImVec2 uv = _Data->TexUvWhitePixel;
+    const bool push_texture_id = _Data->TexIdCommon != _CmdHeader.TextureId;
+    if (push_texture_id)
+        PushTextureID(_Data->TexIdCommon);
 
     if (Flags & ImDrawListFlags_AntiAliasedFill)
     {
@@ -1070,6 +1072,9 @@ void ImDrawList::AddConvexPolyFilled(const ImVec2* points, const int points_coun
         }
         _VtxCurrentIdx += (ImDrawIdx)vtx_count;
     }
+
+    if (push_texture_id)
+        PopTextureID();
 }
 
 void ImDrawList::_PathArcToFastEx(const ImVec2& center, float radius, int a_min_sample, int a_max_sample, int a_step)
@@ -1441,6 +1446,10 @@ void ImDrawList::AddRectFilledMultiColor(const ImVec2& p_min, const ImVec2& p_ma
         return;
 
     const ImVec2 uv = _Data->TexUvWhitePixel;
+    const bool push_texture_id = _Data->TexIdCommon != _CmdHeader.TextureId;
+    if (push_texture_id)
+        PushTextureID(_Data->TexIdCommon);
+
     PrimReserve(6, 4);
     PrimWriteIdx((ImDrawIdx)(_VtxCurrentIdx)); PrimWriteIdx((ImDrawIdx)(_VtxCurrentIdx + 1)); PrimWriteIdx((ImDrawIdx)(_VtxCurrentIdx + 2));
     PrimWriteIdx((ImDrawIdx)(_VtxCurrentIdx)); PrimWriteIdx((ImDrawIdx)(_VtxCurrentIdx + 2)); PrimWriteIdx((ImDrawIdx)(_VtxCurrentIdx + 3));
@@ -1448,6 +1457,9 @@ void ImDrawList::AddRectFilledMultiColor(const ImVec2& p_min, const ImVec2& p_ma
     PrimWriteVtx(ImVec2(p_max.x, p_min.y), uv, col_upr_right);
     PrimWriteVtx(p_max, uv, col_bot_right);
     PrimWriteVtx(ImVec2(p_min.x, p_max.y), uv, col_bot_left);
+
+    if (push_texture_id)
+        PopTextureID();
 }
 
 void ImDrawList::AddQuad(const ImVec2& p1, const ImVec2& p2, const ImVec2& p3, const ImVec2& p4, ImU32 col, float thickness)
@@ -1992,7 +2004,8 @@ ImFontAtlas::ImFontAtlas()
 {
     memset(this, 0, sizeof(*this));
     TexGlyphPadding = 1;
-    PackIdMouseCursors = PackIdLines = -1;
+    TextureIndexCommon = -1;
+    PackIdCommon = -1;
 }
 
 ImFontAtlas::~ImFontAtlas()
@@ -2020,7 +2033,8 @@ void    ImFontAtlas::ClearInputData()
         }
     ConfigData.clear();
     CustomRects.clear();
-    PackIdMouseCursors = PackIdLines = -1;
+    TextureIndexCommon = -1;
+    PackIdCommon = -1;
     // Important: we leave TexReady untouched
 }
 
@@ -2275,9 +2289,7 @@ bool ImFontAtlas::GetMouseCursorTexData(ImGuiMouseCursor cursor_type, ImVec2* ou
     if (Flags & ImFontAtlasFlags_NoMouseCursors)
         return false;
 
-    IM_ASSERT(PackIdMouseCursors != -1);
-    ImFontAtlasCustomRect* r = GetCustomRectByIndex(PackIdMouseCursors);
-    ImVec2 pos = FONT_ATLAS_DEFAULT_TEX_CURSOR_DATA[cursor_type][0] + ImVec2((float)r->X, (float)r->Y);
+    ImVec2 pos = FONT_ATLAS_DEFAULT_TEX_CURSOR_DATA[cursor_type][0] + ImVec2((float)RectMouseCursors.X, (float)RectMouseCursors.Y);
     ImVec2 size = FONT_ATLAS_DEFAULT_TEX_CURSOR_DATA[cursor_type][1];
     *out_size = size;
     *out_offset = FONT_ATLAS_DEFAULT_TEX_CURSOR_DATA[cursor_type][2];
@@ -2286,7 +2298,7 @@ bool ImFontAtlas::GetMouseCursorTexData(ImGuiMouseCursor cursor_type, ImVec2* ou
     pos.x += FONT_ATLAS_DEFAULT_TEX_DATA_W + 1;
     out_uv_fill[0] = (pos) * TexUvScale;
     out_uv_fill[1] = (pos + size) * TexUvScale;
-    *texture_index = r->TextureIndex;
+    *texture_index = RectMouseCursors.TextureIndex;
     return true;
 }
 
@@ -2844,10 +2856,17 @@ IMGUI_API void ImFontAtlasBuildRender32bppRectFromString(ImFontAtlas* atlas, int
             out_pixel[off_x] = (in_str[off_x] == in_marker_char) ? in_marker_pixel_value : IM_COL32_BLACK_TRANS;
 }
 
-static void ImFontAtlasBuildRenderDefaultTexData(ImFontAtlas* atlas)
+static void ImFontAtlasBuildRenderDefaultTexData(ImFontAtlas* atlas, ImFontAtlasCustomRect* rc_common)
 {
-    ImFontAtlasCustomRect* r = atlas->GetCustomRectByIndex(atlas->PackIdMouseCursors);
-    IM_ASSERT(r->IsPacked());
+    ImFontAtlasCustomRect* r = &atlas->RectMouseCursors;
+    r->X += rc_common->X;
+    r->Y += rc_common->Y;
+    r->Reserved = rc_common->Reserved;
+    r->TextureIndex = rc_common->TextureIndex;
+    r->GlyphID = rc_common->GlyphID;
+    r->GlyphAdvanceX = rc_common->GlyphAdvanceX;
+    r->GlyphOffset = rc_common->GlyphOffset;
+    r->Font = rc_common->Font;
 
     const int w = atlas->TexWidth;
     if (!(atlas->Flags & ImFontAtlasFlags_NoMouseCursors))
@@ -2886,14 +2905,22 @@ static void ImFontAtlasBuildRenderDefaultTexData(ImFontAtlas* atlas)
     atlas->TexUvWhitePixel = ImVec2((r->X + 0.5f) * atlas->TexUvScale.x, (r->Y + 0.5f) * atlas->TexUvScale.y);
 }
 
-static void ImFontAtlasBuildRenderLinesTexData(ImFontAtlas* atlas)
+static void ImFontAtlasBuildRenderLinesTexData(ImFontAtlas* atlas, ImFontAtlasCustomRect* rc_common)
 {
     if (atlas->Flags & ImFontAtlasFlags_NoBakedLines)
         return;
 
     // This generates a triangular shape in the texture, with the various line widths stacked on top of each other to allow interpolation between them
-    ImFontAtlasCustomRect* r = atlas->GetCustomRectByIndex(atlas->PackIdLines);
-    IM_ASSERT(r->IsPacked());
+    ImFontAtlasCustomRect* r = &atlas->RectLines;
+    r->X += rc_common->X;
+    r->Y += rc_common->Y;
+    r->Reserved = rc_common->Reserved;
+    r->TextureIndex = rc_common->TextureIndex;
+    r->GlyphID = rc_common->GlyphID;
+    r->GlyphAdvanceX = rc_common->GlyphAdvanceX;
+    r->GlyphOffset = rc_common->GlyphOffset;
+    r->Font = rc_common->Font;
+
     for (unsigned int n = 0; n < IM_DRAWLIST_TEX_LINES_WIDTH_MAX + 1; n++) // +1 because of the zero-width row
     {
         // Each line consists of at least two empty pixels at the ends, with a line of solid pixels in the middle
@@ -2940,21 +2967,39 @@ static void ImFontAtlasBuildRenderLinesTexData(ImFontAtlas* atlas)
 // Note: this is called / shared by both the stb_truetype and the FreeType builder
 void ImFontAtlasBuildInit(ImFontAtlas* atlas)
 {
-    // Register texture region for mouse cursors or standard white pixels
-    if (atlas->PackIdMouseCursors < 0)
+    if (atlas->PackIdCommon < 0)
     {
+        // Allocate texture region for mouse cursors or standard white pixels
+        atlas->RectMouseCursors = ImFontAtlasCustomRect();
+        atlas->RectMouseCursors.X = 0;
+        atlas->RectMouseCursors.Y = 0;
         if (!(atlas->Flags & ImFontAtlasFlags_NoMouseCursors))
-            atlas->PackIdMouseCursors = atlas->AddCustomRectRegular(FONT_ATLAS_DEFAULT_TEX_DATA_W * 2 + 1, FONT_ATLAS_DEFAULT_TEX_DATA_H);
+        {
+            atlas->RectMouseCursors.Width = FONT_ATLAS_DEFAULT_TEX_DATA_W * 2 + 1;
+            atlas->RectMouseCursors.Height = FONT_ATLAS_DEFAULT_TEX_DATA_H;
+        }
         else
-            atlas->PackIdMouseCursors = atlas->AddCustomRectRegular(2, 2);
-    }
+        {
+            atlas->RectMouseCursors.Width = 2;
+            atlas->RectMouseCursors.Height = 2;
+        }
 
-    // Register texture region for thick lines
-    // The +2 here is to give space for the end caps, whilst height +1 is to accommodate the fact we have a zero-width row
-    if (atlas->PackIdLines < 0)
-    {
+        // Allocate texture region for thick lines
+        // The +2 here is to give space for the end caps, whilst height +1 is to accommodate the fact we have a zero-width row
+        atlas->RectLines = ImFontAtlasCustomRect();
+        atlas->RectLines.X = 0;
+        atlas->RectLines.Y = 0;
         if (!(atlas->Flags & ImFontAtlasFlags_NoBakedLines))
-            atlas->PackIdLines = atlas->AddCustomRectRegular(IM_DRAWLIST_TEX_LINES_WIDTH_MAX + 2, IM_DRAWLIST_TEX_LINES_WIDTH_MAX + 1);
+        {
+            atlas->RectLines.Width = IM_DRAWLIST_TEX_LINES_WIDTH_MAX + 2;
+            atlas->RectLines.Height = IM_DRAWLIST_TEX_LINES_WIDTH_MAX + 1;
+        }
+
+        atlas->RectLines.X += 1 + atlas->RectMouseCursors.Width + 1;
+
+        atlas->PackIdCommon = atlas->AddCustomRectRegular(
+            atlas->RectLines.X + atlas->RectLines.Width,
+            ImMax(atlas->RectMouseCursors.Height, atlas->RectLines.Height));
     }
 }
 
@@ -2965,8 +3010,12 @@ void ImFontAtlasBuildFinish(ImFontAtlas* atlas)
 
     // Render into our custom data blocks
     IM_ASSERT(atlas->Textures[0].TexPixelsAlpha8 != NULL || atlas->Textures[0].TexPixelsRGBA32 != NULL);
-    ImFontAtlasBuildRenderDefaultTexData(atlas);
-    ImFontAtlasBuildRenderLinesTexData(atlas);
+
+    ImFontAtlasCustomRect* rc_common = atlas->GetCustomRectByIndex(atlas->PackIdCommon);
+    IM_ASSERT(rc_common->IsPacked());
+    ImFontAtlasBuildRenderDefaultTexData(atlas, rc_common);
+    ImFontAtlasBuildRenderLinesTexData(atlas, rc_common);
+    atlas->TextureIndexCommon = rc_common->TextureIndex;
 
     // Register custom rectangle glyphs
     for (int i = 0; i < atlas->CustomRects.Size; i++)
