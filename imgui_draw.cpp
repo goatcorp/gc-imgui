@@ -2589,7 +2589,7 @@ static bool ImFontAtlasBuildWithStbTruetype(ImFontAtlas* atlas)
                 per_texture.PackedChars.push_back(stbtt_packedchar());
             }
 
-            ImQsort(rect_ptr, remaining_count, sizeof stbrp_rect, ImFontAtlasBuildCompareStbrpRectByWasPacked);
+            ImQsort(rect_ptr, remaining_count, sizeof(stbrp_rect), ImFontAtlasBuildCompareStbrpRectByWasPacked);
 
             rect_ptr += per_texture.Codepoints.Size;
             per_texture.RectsTo = rect_ptr;
@@ -2817,7 +2817,7 @@ void ImFontAtlasBuildPackCustomRects(ImFontAtlas* atlas, ImVector<stbtt_pack_con
             packed++;
         }
 
-        ImQsort(rect_ptr, remaining_count, sizeof stbrp_rect, ImFontAtlasBuildCompareStbrpRectByWasPacked);
+        ImQsort(rect_ptr, remaining_count, sizeof(stbrp_rect), ImFontAtlasBuildCompareStbrpRectByWasPacked);
 
         rect_ptr += packed;
 
