@@ -755,7 +755,7 @@ void ImDrawList::AddPolyline(const ImVec2* points, const int points_count, ImU32
         // We should never hit this, because NewFrame() doesn't set ImDrawListFlags_AntiAliasedLinesUseTex unless ImFontAtlasFlags_NoBakedLines is off
         IM_ASSERT_PARANOID(!use_texture || !(_Data->Font->ContainerAtlas->Flags & ImFontAtlasFlags_NoBakedLines));
 
-        const bool push_texture_id = use_texture && _Data->TexIdCommon != _CmdHeader.TextureId;
+        const bool push_texture_id = _Data->TexIdCommon != _CmdHeader.TextureId;
         if (push_texture_id)
             PushTextureID(_Data->TexIdCommon);
 
@@ -1427,6 +1427,11 @@ void ImDrawList::AddRectFilled(const ImVec2& p_min, const ImVec2& p_max, ImU32 c
 {
     if ((col & IM_COL32_A_MASK) == 0)
         return;
+
+    const bool push_texture_id = _Data->TexIdCommon != _CmdHeader.TextureId;
+    if (push_texture_id)
+        PushTextureID(_Data->TexIdCommon);
+
     if (rounding < 0.5f || (flags & ImDrawFlags_RoundCornersMask_) == ImDrawFlags_RoundCornersNone)
     {
         PrimReserve(6, 4);
@@ -1437,6 +1442,9 @@ void ImDrawList::AddRectFilled(const ImVec2& p_min, const ImVec2& p_max, ImU32 c
         PathRect(p_min, p_max, rounding, flags);
         PathFillConvex(col);
     }
+
+    if (push_texture_id)
+        PopTextureID();
 }
 
 // p_min = upper-left, p_max = lower-right
