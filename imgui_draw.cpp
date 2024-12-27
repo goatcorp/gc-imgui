@@ -1686,6 +1686,16 @@ void ImDrawList::AddImageRounded(ImTextureID user_texture_id, const ImVec2& p_mi
         return;
     }
 
+    // Temporary provide the requested image as the common texture ID, so that the underlying
+    // ImDrawList::AddConvexPolyFilled does not create a separate draw command and then revert back.
+    // ImDrawList::AddImageRounded will temporarily push the texture ID provided by the user if the latest draw
+    // command does not point to the texture we're trying to draw. Once pushed, ImDrawList::AddConvexPolyFilled
+    // will leave the list of draw commands alone, so that ImGui::ShadeVertsLinearUV can safely work on the latest
+    // draw command.
+    ImTextureID& texIdCommon = *const_cast<ImTextureID*>(&this->_Data->TexIdCommon);
+    const ImTextureID realTexIdCommon = texIdCommon;
+    texIdCommon = user_texture_id;
+
     const bool push_texture_id = user_texture_id != _CmdHeader.TextureId;
     if (push_texture_id)
         PushTextureID(user_texture_id);
@@ -1698,6 +1708,9 @@ void ImDrawList::AddImageRounded(ImTextureID user_texture_id, const ImVec2& p_mi
 
     if (push_texture_id)
         PopTextureID();
+
+    // Revert above temporary common texture ID.
+    texIdCommon = realTexIdCommon;
 }
 
 
