@@ -3162,6 +3162,11 @@ namespace ImGui
     inline bool             TempInputIsActive(ImGuiID id)       { ImGuiContext& g = *GImGui; return (g.ActiveId == id && g.TempInputId == id); }
     inline ImGuiInputTextState* GetInputTextState(ImGuiID id)   { ImGuiContext& g = *GImGui; return (g.InputTextState.ID == id) ? &g.InputTextState : NULL; } // Get input text state if active
 
+    // BEGIN DALAMUD CUSTOM
+    IMGUI_API void Custom_StbTextMakeUndoReplace(ImGuiInputTextState* str, int where, int old_length, int new_length);
+    IMGUI_API void Custom_StbTextUndo(ImGuiInputTextState* str);
+    // END DALAMUD CUSTOM
+
     // Color
     IMGUI_API void          ColorTooltip(const char* text, const float* col, ImGuiColorEditFlags flags);
     IMGUI_API void          ColorEditOptionsPopup(const float* col, ImGuiColorEditFlags flags);
