@@ -11314,5 +11314,16 @@ void ImGui::TabItemLabelAndCloseButton(ImDrawList* draw_list, const ImRect& bb, 
         *out_just_closed = close_button_pressed;
 }
 
+#ifdef DALAMUD_CUSTOM
+void ImGui::Custom_StbTextMakeUndoReplace(ImGuiInputTextState* str, int where, int old_length, int new_length)
+{
+    ImStb::stb_text_makeundo_replace(str, str->Stb, where, old_length, new_length);
+}
+
+void ImGui::Custom_StbTextUndo(ImGuiInputTextState* str)
+{
+    ImStb::stb_text_undo(str, str->Stb);
+}
+#endif // DALAMUD_CUSTOM
 
 #endif // #ifndef IMGUI_DISABLE
