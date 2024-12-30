@@ -5472,6 +5472,11 @@ bool ImGui::BeginChildEx(const char* name, ImGuiID id, const ImVec2& size_arg, b
     flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_NoDocking;
     flags |= (parent_window->Flags & ImGuiWindowFlags_NoMove);  // Inherit the NoMove flag
 
+    // BEGIN DALAMUD CUSTOM
+    if (parent_window->InheritNoInputs && parent_window->Flags & ImGuiWindowFlags_NoInputs)
+        flags |= ImGuiWindowFlags_NoInputs;
+    // END DALAMUD CUSTOM
+
     // Size
     const ImVec2 content_avail = GetContentRegionAvail();
     ImVec2 size = ImFloor(size_arg);
@@ -5498,6 +5503,10 @@ bool ImGui::BeginChildEx(const char* name, ImGuiID id, const ImVec2& size_arg, b
     ImGuiWindow* child_window = g.CurrentWindow;
     child_window->ChildId = id;
     child_window->AutoFitChildAxises = (ImS8)auto_fit_axises;
+
+    // BEGIN DALAMUD CUSTOM
+    child_window->InheritNoInputs = parent_window->InheritNoInputs;
+    // END DALAMUD CUSTOM
 
     // Set the cursor to handle case where the user called SetNextWindowPos()+BeginChild() manually.
     // While this is not really documented/defined, it seems that the expected thing to do.

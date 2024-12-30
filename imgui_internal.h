@@ -2363,6 +2363,10 @@ struct IMGUI_API ImGuiWindow
     ImGuiItemStatusFlags    DockTabItemStatusFlags;
     ImRect                  DockTabItemRect;
 
+    // BEGIN DALAMUD CUSTOM
+    bool                    InheritNoInputs;                    // Inherit NoInputs from parent window
+    // END DALAMUD CUSTOM
+
 public:
     ImGuiWindow(ImGuiContext* context, const char* name);
     ~ImGuiWindow();
