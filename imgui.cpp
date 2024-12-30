@@ -6938,6 +6938,10 @@ bool ImGui::BeginChildEx(const char* name, ImGuiID id, const ImVec2& size_arg, I
     // Set window flags
     window_flags |= ImGuiWindowFlags_ChildWindow | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoDocking;
     window_flags |= (parent_window->Flags & ImGuiWindowFlags_NoMove); // Inherit the NoMove flag
+#ifdef DALAMUD_CUSTOM
+    if (parent_window->InheritNoInputs && parent_window->Flags & ImGuiWindowFlags_NoInputs)
+        window_flags |= ImGuiWindowFlags_NoInputs;
+#endif // DALAMUD_CUSTOM
     if (child_flags & (ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_AlwaysAutoResize))
         window_flags |= ImGuiWindowFlags_AlwaysAutoResize; // FIXME: Would be sane to not make single-axis flag set this. (#9355)
     if ((child_flags & (ImGuiChildFlags_ResizeX | ImGuiChildFlags_ResizeY)) == 0)
@@ -7011,6 +7015,9 @@ bool ImGui::BeginChildEx(const char* name, ImGuiID id, const ImVec2& size_arg, I
     ImGuiWindow* child_window = g.CurrentWindow;
     child_window->ChildId = id;
 
+#ifdef DALAMUD_CUSTOM
+    child_window->InheritNoInputs = parent_window->InheritNoInputs;
+#endif // DALAMUD_CUSTOM
     // Set the cursor to handle case where the user called SetNextWindowPos()+BeginChild() manually.
     // While this is not really documented/defined, it seems that the expected thing to do.
     if (child_window->BeginCount == 1)

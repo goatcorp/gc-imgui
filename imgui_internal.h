@@ -3126,6 +3126,9 @@ struct IMGUI_API ImGuiWindow
     ImGuiDockNode*          DockNodeAsHost;                     // Which node are we owning (for parent windows)
     ImGuiID                 DockId;                             // Backup of last valid DockNode->ID, so single window remember their dock node id even when they are not bound any more
 
+#ifdef DALAMUD_CUSTOM
+    bool                    InheritNoInputs;                    // Inherit NoInputs from parent window
+#endif // DALAMUD_CUSTOM
 public:
     ImGuiWindow(ImGuiContext* context, const char* name);
     ~ImGuiWindow();
