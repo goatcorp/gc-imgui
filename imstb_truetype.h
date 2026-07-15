@@ -4223,23 +4223,25 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
 
    k = 0;
    for (i=0; i < num_ranges; ++i) {
-      float fh = ranges[i].font_size;
+      stbtt_pack_range *range = &ranges[i];
+      float fh = range->font_size;
       float scale = fh > 0 ? stbtt_ScaleForPixelHeight(info, fh) : stbtt_ScaleForMappingEmToPixels(info, -fh);
       float recip_h,recip_v,sub_x,sub_y;
-      spc->h_oversample = ranges[i].h_oversample;
-      spc->v_oversample = ranges[i].v_oversample;
+      int num_chars = range->num_chars;
+      spc->h_oversample = range->h_oversample;
+      spc->v_oversample = range->v_oversample;
       recip_h = 1.0f / spc->h_oversample;
       recip_v = 1.0f / spc->v_oversample;
       sub_x = stbtt__oversample_shift(spc->h_oversample);
       sub_y = stbtt__oversample_shift(spc->v_oversample);
 
 #pragma omp parallel for
-      for (j=0; j < ranges[i].num_chars; ++j) {
+      for (j=0; j < num_chars; ++j) {
          stbrp_rect *r = &rects[k + j];
          if (r->was_packed && r->w != 0 && r->h != 0) {
-            stbtt_packedchar *bc = &ranges[i].chardata_for_range[j];
+            stbtt_packedchar *bc = &range->chardata_for_range[j];
             int advance, lsb, x0,y0,x1,y1;
-            int codepoint = ranges[i].array_of_unicode_codepoints == NULL ? ranges[i].first_unicode_codepoint_in_range + j : ranges[i].array_of_unicode_codepoints[j];
+            int codepoint = range->array_of_unicode_codepoints == NULL ? range->first_unicode_codepoint_in_range + j : range->array_of_unicode_codepoints[j];
             int glyph = stbtt_FindGlyphIndex(info, codepoint);
             stbrp_coord pad = (stbrp_coord) spc->padding;
 
@@ -4292,7 +4294,7 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
          }
       }
 
-      for (j = 0; j < ranges[i].num_chars; ++j) {
+      for (j = 0; j < num_chars; ++j) {
          stbrp_rect* r = &rects[k + j];
 
          const bool is_valid_glyph = (r->was_packed && r->w != 0 && r->h != 0);
@@ -4300,14 +4302,14 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
          const bool can_fallback    = (!spc->skip_missing && missing_glyph >= 0);
 
          if (is_empty_glyph && can_fallback) {
-            ranges[i].chardata_for_range[j] = ranges[i].chardata_for_range[missing_glyph];
+            range->chardata_for_range[j] = range->chardata_for_range[missing_glyph];
          } 
          else if (!is_valid_glyph) {
             return_value = 0; // if any fail, report failure
          }
       }
 
-      k += ranges[i].num_chars;
+      k += num_chars;
    }
 
    // restore original values
