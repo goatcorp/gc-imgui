@@ -4215,13 +4215,13 @@ STBTT_DEF void stbtt_MakeGlyphBitmapSubpixelPrefilter(const stbtt_fontinfo *info
 // rects array must be big enough to accommodate all characters in the given ranges
 STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const stbtt_fontinfo *info, stbtt_pack_range *ranges, int num_ranges, stbrp_rect *rects)
 {
-   int i,j, missing_glyph = -1, return_value = 1;
+   int i,j,k, missing_glyph = -1, return_value = 1;
 
    // save current values
    int old_h_over = spc->h_oversample;
    int old_v_over = spc->v_oversample;
 
-   int current_k = 0;
+   k = 0;
    for (i=0; i < num_ranges; ++i) {
       float fh = ranges[i].font_size;
       float scale = fh > 0 ? stbtt_ScaleForPixelHeight(info, fh) : stbtt_ScaleForMappingEmToPixels(info, -fh);
@@ -4233,13 +4233,9 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
       sub_x = stbtt__oversample_shift(spc->h_oversample);
       sub_y = stbtt__oversample_shift(spc->v_oversample);
 
-      int k_start = current_k;
-      current_k += ranges[i].num_chars;
-
 #pragma omp parallel for
       for (j=0; j < ranges[i].num_chars; ++j) {
-         int k = k_start + j;
-         stbrp_rect *r = &rects[k];
+         stbrp_rect *r = &rects[k + j];
          if (r->was_packed && r->w != 0 && r->h != 0) {
             stbtt_packedchar *bc = &ranges[i].chardata_for_range[j];
             int advance, lsb, x0,y0,x1,y1;
@@ -4297,21 +4293,21 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
       }
 
       for (j = 0; j < ranges[i].num_chars; ++j) {
-         int k = k_start + j;
-         stbrp_rect* r = &rects[k];
+         stbrp_rect* r = &rects[k + j];
 
-         if (!(r->was_packed && r->w != 0 && r->h != 0)) {
-            if (spc->skip_missing) {
-               return_value = 0;
-            }
-            else if (r->was_packed && r->w == 0 && r->h == 0 && missing_glyph >= 0) {
-               ranges[i].chardata_for_range[j] = ranges[i].chardata_for_range[missing_glyph];
-            }
-            else {
-               return_value = 0; // if any fail, report failure
-            }
+         const bool is_valid_glyph = (r->was_packed && r->w != 0 && r->h != 0);
+         const bool is_empty_glyph = (r->was_packed && r->w == 0 && r->h == 0);
+         const bool can_fallback    = (!spc->skip_missing && missing_glyph >= 0);
+
+         if (is_empty_glyph && can_fallback) {
+            ranges[i].chardata_for_range[j] = ranges[i].chardata_for_range[missing_glyph];
+         } 
+         else if (!is_valid_glyph) {
+            return_value = 0; // if any fail, report failure
          }
       }
+
+      k += ranges[i].num_chars;
    }
 
    // restore original values
