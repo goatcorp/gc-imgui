@@ -4246,19 +4246,19 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
             stbrp_coord pad = (stbrp_coord) spc->padding;
 
             // pad on left and top
-            r->x += pad;
-            r->y += pad;
-            r->w -= pad;
-            r->h -= pad;
+            stbrp_coord rx = r->x + pad;
+            stbrp_coord ry = r->y + pad;
+            stbrp_coord rw = r->w - pad;
+            stbrp_coord rh = r->h - pad;
             stbtt_GetGlyphHMetrics(info, glyph, &advance, &lsb);
             stbtt_GetGlyphBitmapBox(info, glyph,
                                     scale * spc->h_oversample,
                                     scale * spc->v_oversample,
                                     &x0,&y0,&x1,&y1);
             stbtt_MakeGlyphBitmapSubpixel(info,
-                                          spc->pixels + r->x + r->y*spc->stride_in_bytes,
-                                          r->w - spc->h_oversample+1,
-                                          r->h - spc->v_oversample+1,
+                                          spc->pixels + rx + ry*spc->stride_in_bytes,
+                                          rw - spc->h_oversample+1,
+                                          rh - spc->v_oversample+1,
                                           spc->stride_in_bytes,
                                           scale * spc->h_oversample,
                                           scale * spc->v_oversample,
@@ -4266,24 +4266,24 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
                                           glyph);
 
             if (spc->h_oversample > 1)
-               stbtt__h_prefilter(spc->pixels + r->x + r->y*spc->stride_in_bytes,
-                                  r->w, r->h, spc->stride_in_bytes,
+               stbtt__h_prefilter(spc->pixels + rx + ry*spc->stride_in_bytes,
+                                  rw, rh, spc->stride_in_bytes,
                                   spc->h_oversample);
 
             if (spc->v_oversample > 1)
-               stbtt__v_prefilter(spc->pixels + r->x + r->y*spc->stride_in_bytes,
-                                  r->w, r->h, spc->stride_in_bytes,
+               stbtt__v_prefilter(spc->pixels + rx + ry*spc->stride_in_bytes,
+                                  rw, rh, spc->stride_in_bytes,
                                   spc->v_oversample);
 
-            bc->x0       = (stbtt_int16)  r->x;
-            bc->y0       = (stbtt_int16)  r->y;
-            bc->x1       = (stbtt_int16) (r->x + r->w);
-            bc->y1       = (stbtt_int16) (r->y + r->h);
+            bc->x0       = (stbtt_int16)  rx;
+            bc->y0       = (stbtt_int16)  ry;
+            bc->x1       = (stbtt_int16) (rx + rw);
+            bc->y1       = (stbtt_int16) (ry + rh);
             bc->xadvance =                scale * advance;
             bc->xoff     =       (float)  x0 * recip_h + sub_x;
             bc->yoff     =       (float)  y0 * recip_v + sub_y;
-            bc->xoff2    =                (x0 + r->w) * recip_h + sub_x;
-            bc->yoff2    =                (y0 + r->h) * recip_v + sub_y;
+            bc->xoff2    =                (x0 + rw) * recip_h + sub_x;
+            bc->yoff2    =                (y0 + rh) * recip_v + sub_y;
 
             if (glyph == 0) {
 #pragma omp critical
@@ -4297,14 +4297,17 @@ STBTT_DEF int stbtt_PackFontRangesRenderIntoRects(stbtt_pack_context *spc, const
       for (j = 0; j < num_chars; ++j) {
          stbrp_rect* r = &rects[k + j];
 
-         const bool is_valid_glyph = (r->was_packed && r->w != 0 && r->h != 0);
-         const bool is_empty_glyph = (r->was_packed && r->w == 0 && r->h == 0);
-         const bool can_fallback    = (!spc->skip_missing && missing_glyph >= 0);
-
-         if (is_empty_glyph && can_fallback) {
+         if (r->was_packed && r->w != 0 && r->h != 0) {
+            stbrp_coord pad = (stbrp_coord)spc->padding;
+            r->x += pad;
+            r->y += pad;
+            r->w -= pad;
+            r->h -= pad;
+         } else if (spc->skip_missing) {
+            return_value = 0;
+         } else if (r->was_packed && r->w == 0 && r->h == 0 && missing_glyph >= 0) {
             range->chardata_for_range[j] = range->chardata_for_range[missing_glyph];
-         } 
-         else if (!is_valid_glyph) {
+         } else {
             return_value = 0; // if any fail, report failure
          }
       }
