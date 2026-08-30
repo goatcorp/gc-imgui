@@ -4727,7 +4727,7 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
                 select_start_offset.x = InputTextCalcTextSizeW(ImStrbolW(searches_input_ptr[1], text_begin), searches_input_ptr[1]).x;
                 select_start_offset.y = searches_result_line_no[1] * g.FontSize;
 
-                if (searches_input_ptr[0] != text_begin)
+                if (searches_input_ptr[1] != text_begin)
                 {
                     // It will snap the left border of the selection box to the left border of the first glyph selected when drawing selection.
                     // Taking account of the above, snap the cursor too, if cursor is at the left border of the selection box.
