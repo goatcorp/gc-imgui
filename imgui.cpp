@@ -18751,7 +18751,8 @@ void ImGui::DebugNodeWindow(ImGuiWindow* window, const char* label)
 
     ImGuiWindowFlags flags = window->Flags;
     DebugNodeDrawList(window, window->Viewport, window->DrawList, "DrawList");
-    BulletText("Pos: (%.1f,%.1f), Size: (%.1f,%.1f), ContentSize (%.1f,%.1f) Ideal (%.1f,%.1f)", window->Pos.x, window->Pos.y, window->Size.x, window->Size.y, window->ContentSize.x, window->ContentSize.y, window->ContentSizeIdeal.x, window->ContentSizeIdeal.y);
+    BulletText("Pos: (%.1f,%.1f), Size: (%.1f,%.1f)\nContentSize (%.1f,%.1f) Ideal (%.1f,%.1f)", window->Pos.x, window->Pos.y, window->Size.x, window->Size.y, window->ContentSize.x, window->ContentSize.y, window->ContentSizeIdeal.x, window->ContentSizeIdeal.y);
+    SameLine(); if (SmallButton("Reset Pos")) { window->Pos = GetMainViewport()->Pos + ImVec2(60, 60); }
     BulletText("Flags: 0x%08X (%s%s%s%s%s%s%s%s%s..)", flags,
         (flags & ImGuiWindowFlags_ChildWindow)  ? "Child " : "",      (flags & ImGuiWindowFlags_Tooltip)     ? "Tooltip "   : "",  (flags & ImGuiWindowFlags_Popup) ? "Popup " : "",
         (flags & ImGuiWindowFlags_Modal)        ? "Modal " : "",      (flags & ImGuiWindowFlags_ChildMenu)   ? "ChildMenu " : "",  (flags & ImGuiWindowFlags_NoSavedSettings) ? "NoSavedSettings " : "",
