@@ -3560,7 +3560,11 @@ void ImGui::TableAngledHeadersRowEx(ImGuiID row_id, float angle, float max_label
     ButtonBehavior(row_r, row_id, NULL, NULL);
     KeepAliveID(row_id);
 
+#ifdef DALAMUD_CUSTOM
+    const float ascent_scaled = GetFontMetrics().Ascent;
+#else
     const float ascent_scaled = g.FontBaked->Ascent * g.FontBakedScale; // FIXME: Standardize those scaling factors better
+#endif // DALAMUD_CUSTOM
     const float line_off_for_ascent_x = (ImMax((g.FontSize - ascent_scaled) * 0.5f, 0.0f) / -sin_a) * (flip_label ? -1.0f : 1.0f);
     const ImVec2 padding = g.Style.CellPadding; // We will always use swapped component
     const ImVec2 align = g.Style.TableAngledHeadersTextAlign;
@@ -3613,11 +3617,15 @@ void ImGui::TableAngledHeadersRowEx(ImGuiID row_id, float angle, float max_label
                     float clip_width = max_label_width - padding.y; // Using padding.y*2.0f would be symmetrical but hide more text.
                     float clip_height = ImMin(label_size.y, column->ClipRect.Max.x - column->WorkMinX - line_off_curr_x);
                     ImRect clip_r(window->ClipRect.Min, window->ClipRect.Min + ImVec2(clip_width, clip_height));
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
                     int vtx_idx_begin = draw_list->_VtxCurrentIdx;
                     PushStyleColor(ImGuiCol_Text, request->TextColor);
                     RenderTextEllipsis(draw_list, clip_r.Min, clip_r.Max, clip_r.Max.x, label_name, label_name_eol, &label_size);
                     PopStyleColor();
                     int vtx_idx_end = draw_list->_VtxCurrentIdx;
+#endif // DALAMUD_CUSTOM
 
                     // Up<>Down alignment
                     const float available_space = ImMax(clip_width - label_size.x + ImAbs(padding.x * cos_a) * 2.0f - ImAbs(padding.y * sin_a) * 2.0f, 0.0f);
@@ -3631,7 +3639,17 @@ void ImGui::TableAngledHeadersRowEx(ImGuiID row_id, float angle, float max_label
                     if (flip_label)
                         pivot_out += unit_right * (clip_width - ImMax(0.0f, clip_width - label_size.x));
                     pivot_out.x += flip_label ? line_off_curr_x + line_off_step_x : line_off_curr_x;
+#ifdef DALAMUD_CUSTOM
+                    {
+                        const ImTextTransform transform = { ImVec2(label_cos_a, label_sin_a), ImVec2(-label_sin_a, label_cos_a) };
+                        const ImVec2 transformed_pos_min = pivot_out + ImRotate(clip_r.Min - pivot_in, label_cos_a, label_sin_a);
+                        PushStyleColor(ImGuiCol_Text, request->TextColor);
+                        RenderTextEllipsisEx(draw_list, clip_r.Min, clip_r.Max, clip_r.Max.x, label_name, label_name_eol, &label_size, &transform, transformed_pos_min);
+                        PopStyleColor();
+                    }
+#else
                     ShadeVertsTransformPos(draw_list, vtx_idx_begin, vtx_idx_end, pivot_in, label_cos_a, label_sin_a, pivot_out); // Rotate and offset
+#endif // DALAMUD_CUSTOM
                     //if (g.IO.KeyShift) { ImDrawList* fg_dl = GetForegroundDrawList(); vtx_idx_begin = fg_dl->_VtxCurrentIdx; fg_dl->AddRect(clip_r.Min, clip_r.Max, IM_COL32(0, 255, 0, 255), 0.0f, 0, 1.0f); ShadeVertsTransformPos(fg_dl, vtx_idx_begin, fg_dl->_VtxCurrentIdx, pivot_in, label_cos_a, label_sin_a, pivot_out); }
 
                     label_name = label_name_eol + 1;

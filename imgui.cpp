@@ -4193,6 +4193,9 @@ void ImGui::RenderTextClipped(const ImVec2& pos_min, const ImVec2& pos_max, cons
 // (BREAKING) On 2025/04/16 we removed the 'float clip_max_x' parameters which was preceding 'float ellipsis_max' and was the same value for 99% of users.
 void ImGui::RenderTextEllipsis(ImDrawList* draw_list, const ImVec2& pos_min, const ImVec2& pos_max, float ellipsis_max_x, const char* text, const char* text_end_full, const ImVec2* text_size_if_known)
 {
+#ifdef DALAMUD_CUSTOM
+    RenderTextEllipsisEx(draw_list, pos_min, pos_max, ellipsis_max_x, text, text_end_full, text_size_if_known, NULL, pos_min);
+#else
     ImGuiContext& g = *GImGui;
     if (text_end_full == NULL)
         text_end_full = FindRenderedTextEnd(text);
@@ -4233,6 +4236,7 @@ void ImGui::RenderTextEllipsis(ImDrawList* draw_list, const ImVec2& pos_min, con
 
     if (g.LogEnabled)
         LogRenderedText(&pos_min, text, text_end_full);
+#endif // DALAMUD_CUSTOM
 }
 
 // Render a rectangle shaped with optional rounding and borders
@@ -4319,19 +4323,31 @@ void ImGui::RenderMouseCursor(ImVec2 base_pos, float base_scale, ImGuiMouseCurso
     ImGuiContext& g = *GImGui;
     if (mouse_cursor <= ImGuiMouseCursor_None || mouse_cursor >= ImGuiMouseCursor_COUNT) // We intentionally accept out of bound values.
         mouse_cursor = ImGuiMouseCursor_Arrow;
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     ImFontAtlas* font_atlas = g.DrawListSharedData.FontAtlas;
+#endif // DALAMUD_CUSTOM
     for (ImGuiViewportP* viewport : g.Viewports)
     {
         // We scale cursor with current viewport/monitor, however Windows 10 for its own hardware cursor seems to be using a different scale factor.
         ImVec2 offset, size, uv[4];
+#ifdef DALAMUD_CUSTOM
+        if (!GetMouseCursorTexData(mouse_cursor, &offset, &size, &uv[0], &uv[2]))
+#else
         if (!ImFontAtlasGetMouseCursorTexData(font_atlas, mouse_cursor, &offset, &size, &uv[0], &uv[2]))
+#endif // DALAMUD_CUSTOM
             continue;
         const ImVec2 pos = base_pos - offset;
         const float scale = base_scale * viewport->DpiScale;
         if (!viewport->GetMainRect().Overlaps(ImRect(pos, pos + ImVec2(size.x + 2, size.y + 2) * scale)))
             continue;
         ImDrawList* draw_list = GetForegroundDrawList(viewport);
+#ifdef DALAMUD_CUSTOM
+        ImTextureRef tex_ref = g.DrawListSharedData.ShapeTex->GetTexRef();
+#else
         ImTextureRef tex_ref = font_atlas->TexRef;
+#endif // DALAMUD_CUSTOM
         draw_list->PushTexture(tex_ref);
         draw_list->AddImage(tex_ref, pos + ImVec2(1, 0) * scale, pos + (ImVec2(1, 0) + size) * scale, uv[2], uv[3], col_shadow);
         draw_list->AddImage(tex_ref, pos + ImVec2(2, 0) * scale, pos + (ImVec2(2, 0) + size) * scale, uv[2], uv[3], col_shadow);
@@ -4444,9 +4460,13 @@ ImGuiContext::ImGuiContext(ImFontAtlas* shared_font_atlas)
     FontBaked = NULL;
     FontSize = FontSizeBase = FontBakedScale = CurrentDpiScale = 0.0f;
     CurrentPixelDensity = 1.0f;
+#ifdef DALAMUD_CUSTOM
+    IM_UNUSED(shared_font_atlas);
+#else
     IO.Fonts = shared_font_atlas ? shared_font_atlas : IM_NEW(ImFontAtlas)();
     if (shared_font_atlas == NULL)
         IO.Fonts->OwnerContext = this;
+#endif // DALAMUD_CUSTOM
     WithinEndChildID = WithinEndPopupID = 0;
     TestEngine = NULL;
 
@@ -4591,7 +4611,11 @@ ImGuiContext::ImGuiContext(ImFontAtlas* shared_font_atlas)
     MouseStationaryTimer = 0.0f;
 
     MixedValueLabel = "-";
+#ifdef DALAMUD_CUSTOM
+    InputTextPasswordMaskCount = 0;
+#else
     InputTextPasswordFontBackupFlags = ImFontFlags_None;
+#endif // DALAMUD_CUSTOM
     InputTextReactivateId = 0;
     TempInputId = 0;
     memset(&DataTypeZeroValue, 0, sizeof(DataTypeZeroValue));
@@ -4741,9 +4765,17 @@ void ImGui::Initialize()
 
     // ImDrawList/ImFontAtlas are designed to function without ImGui, and 99% of it works without an ImGui context.
     // But this link allows us to facilitate/handle a few edge cases better.
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     ImFontAtlas* atlas = g.IO.Fonts;
+#endif // DALAMUD_CUSTOM
     g.DrawListSharedData.Context = &g;
+#ifdef DALAMUD_CUSTOM
+    CreateShapeTexture(&g.DrawListSharedData, IMGUI_SHAPE_TEX_DEFAULT_SIZE, IMGUI_SHAPE_TEX_DEFAULT_SIZE);
+#else
     RegisterFontAtlas(atlas);
+#endif // DALAMUD_CUSTOM
 
     g.Initialized = true;
 }
@@ -4760,6 +4792,10 @@ void ImGui::Shutdown()
         IM_ASSERT_USER_ERROR(viewport->RendererUserData == NULL && viewport->PlatformUserData == NULL && viewport->PlatformHandle == NULL, "Backend or app forgot to call DestroyPlatformWindows()?");
     }
 
+#ifdef DALAMUD_CUSTOM
+    SetTextCallbacks(NULL, NULL);
+    DestroyShapeTexture(&g.DrawListSharedData);
+#else
     // The fonts atlas can be used prior to calling NewFrame(), so we clear it even if g.Initialized is FALSE (which would happen if we never called NewFrame)
     for (ImFontAtlas* atlas : g.FontAtlases)
     {
@@ -4774,6 +4810,7 @@ void ImGui::Shutdown()
             }
         }
     }
+#endif // DALAMUD_CUSTOM
     g.DrawListSharedData.TempBuffer.clear();
 
     // Cleanup of other data are conditional on actually having initialized Dear ImGui.
@@ -4962,8 +4999,12 @@ void ImGui::GcCompactTransientMiscBuffers()
     g.MultiSelectTempDataStacked = 0;
     g.MultiSelectTempData.clear_destruct();
     TableGcCompactSettings();
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     for (ImFontAtlas* atlas : g.FontAtlases)
         atlas->CompactCache();
+#endif // DALAMUD_CUSTOM
 }
 
 // Free up/compact internal window buffers, we can use this when a window becomes unused.
@@ -5553,7 +5594,11 @@ static ImDrawList* GetViewportBgFgDrawList(ImGuiViewportP* viewport, size_t draw
     {
         draw_list->_ResetForNewFrame();
         draw_list->_SetPixelDensity(viewport->FramebufferScale.x);
+#ifdef DALAMUD_CUSTOM
+        draw_list->PushTexture(g.DrawListSharedData.ShapeTex->GetTexRef());
+#else
         draw_list->PushTexture(g.IO.Fonts->TexRef);
+#endif // DALAMUD_CUSTOM
         draw_list->PushClipRect(viewport->Pos, viewport->Pos + viewport->Size, false);
         viewport->BgFgDrawListsLastFrameActive[drawlist_no] = g.FrameCount;
         viewport->BgFgDrawListsLastTimeActive[drawlist_no] = (float)g.Time;
@@ -5898,8 +5943,12 @@ static void SetupDrawListSharedData()
     g.DrawListSharedData.CurveTessellationMaxError = g.Style.CurveTessellationMaxError;
     g.DrawListSharedData.SetCircleTessellationMaxError(g.Style.CircleTessellationMaxError);
     g.DrawListSharedData.InitialDrawFlags = ImDrawFlags_None;
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     if (g.IO.Fonts->Flags & ImFontAtlasFlags_NoBakedLines)
         g.Style.AntiAliasedLines = g.Style.AntiAliasedLineEnds = false;
+#endif // DALAMUD_CUSTOM
     if (g.Style.AntiAliasedFill)
         g.DrawListSharedData.InitialDrawFlags |= ImDrawFlags_AAFill;
     if (g.Style.AntiAliasedLines)
@@ -5908,8 +5957,12 @@ static void SetupDrawListSharedData()
         g.DrawListSharedData.InitialDrawFlags |= ImDrawFlags_AALineEnds;
     if (g.IO.ConfigDebugDrawListDefaultsToStrokeLegacy)
         g.DrawListSharedData.InitialDrawFlags |= ImDrawFlags_StrokeLegacy;
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     if (!(g.IO.Fonts->Flags & ImFontAtlasFlags_NoBakedRoundCorners))
         g.DrawListSharedData.InitialDrawFlags |= ImDrawFlags_UseTexForRoundCorners | ImDrawFlags_AllowTexForRoundCorners_;
+#endif // DALAMUD_CUSTOM
     if (g.IO.BackendFlags & ImGuiBackendFlags_RendererHasVtxOffset)
         g.DrawListSharedData.InitialDrawFlags |= ImDrawFlags_UseVtxOffset;
 }
@@ -6565,9 +6618,13 @@ void ImGui::EndFrame()
 
     UpdateTexturesEndFrame();
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     // Unlock font atlas
     for (ImFontAtlas* atlas : g.FontAtlases)
         atlas->Locked = false;
+#endif // DALAMUD_CUSTOM
 
     // Clear Input data for next frame
     g.IO.MousePosPrev = g.IO.MousePos;
@@ -6645,11 +6702,15 @@ void ImGui::Render()
         g.IO.MetricsRenderIndices += draw_data->TotalIdxCount;
     }
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 #ifndef IMGUI_DISABLE_DEBUG_TOOLS
     if (g.IO.BackendFlags & ImGuiBackendFlags_RendererHasTextures)
         for (ImFontAtlas* atlas : g.FontAtlases)
             ImFontAtlasDebugLogTextureRequests(atlas);
 #endif
+#endif // DALAMUD_CUSTOM
 
     CallContextHooks(&g, ImGuiContextHookType_RenderPost);
 }
@@ -6670,7 +6731,13 @@ ImVec2 ImGui::CalcTextSize(const char* text, const char* text_end, bool hide_tex
     const float font_size = g.FontSize;
     if (text == text_display_end)
         return ImVec2(0.0f, font_size);
+#ifdef DALAMUD_CUSTOM
+    ImTextDesc desc;
+    GetTextDesc(&desc, wrap_width);
+    ImVec2 text_size = CalcTextSizeEx(font, &desc, text, text_display_end, text_display_end, NULL, NULL);
+#else
     ImVec2 text_size = font->CalcTextSizeA(font_size, FLT_MAX, wrap_width, text, text_display_end, NULL);
+#endif // DALAMUD_CUSTOM
 
     // Round
     // (see 7b0bf230, 4622fa4b6, #791 for details about this.)
@@ -8732,7 +8799,11 @@ bool ImGui::Begin(const char* name, bool* p_open, ImGuiWindowFlags flags)
         // Setup draw list and outer clipping rectangle
         IM_ASSERT(window->DrawList->CmdBuffer.Size == 1 && window->DrawList->CmdBuffer[0].ElemCount == 0);
         window->DrawList->_SetPixelDensity(window->Viewport->FramebufferScale.x);
+#ifdef DALAMUD_CUSTOM
+        window->DrawList->PushTexture(g.DrawListSharedData.ShapeTex->GetTexRef());
+#else
         window->DrawList->PushTexture(g.Font->OwnerAtlas->TexRef);
+#endif // DALAMUD_CUSTOM
         PushClipRect(host_rect.Min, host_rect.Max, false);
 
         // Child windows can render their decoration (bg color, border, scrollbars, etc.) within their parent to save a draw call (since 1.71)
@@ -9629,10 +9700,14 @@ ImFont* ImGui::GetFont()
     return GImGui->Font;
 }
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 ImFontBaked* ImGui::GetFontBaked()
 {
     return GImGui->FontBaked;
 }
+#endif // DALAMUD_CUSTOM
 
 // Get current font size (= height in pixels) of current font, with global scale factors applied.
 // - Use style.FontSizeBase to get value before global scale factors.
@@ -9844,6 +9919,9 @@ static void ImGui::UpdateTexturesNewFrame()
     // Cannot update every atlases based on atlas's FrameCount < g.FrameCount, because an atlas may be shared by multiple contexts with different frame count.
     ImGuiContext& g = *GImGui;
     const bool has_textures = (g.IO.BackendFlags & ImGuiBackendFlags_RendererHasTextures) != 0;
+#ifdef DALAMUD_CUSTOM
+    IM_ASSERT(has_textures && "RendererHasTextures must be set");
+#else
     for (ImFontAtlas* atlas : g.FontAtlases)
     {
         if (atlas->OwnerContext == &g)
@@ -9860,6 +9938,7 @@ static void ImGui::UpdateTexturesNewFrame()
             IM_ASSERT(atlas->RendererHasTextures == has_textures);
         }
     }
+#endif // DALAMUD_CUSTOM
     for (ImTextureData* tex : g.UserTextures)
         ImTextureDataUpdateNewFrame(tex);
 }
@@ -9869,6 +9948,9 @@ static void ImGui::UpdateTexturesEndFrame()
 {
     ImGuiContext& g = *GImGui;
     g.PlatformIO.Textures.resize(0);
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     for (ImFontAtlas* atlas : g.FontAtlases)
         for (ImTextureData* tex : atlas->TexList)
         {
@@ -9877,6 +9959,7 @@ static void ImGui::UpdateTexturesEndFrame()
             tex->RefCount = (unsigned short)atlas->RefCount;
             g.PlatformIO.Textures.push_back(tex);
         }
+#endif // DALAMUD_CUSTOM
     for (ImTextureData* tex : g.UserTextures)
         g.PlatformIO.Textures.push_back(tex);
 }
@@ -9884,9 +9967,13 @@ static void ImGui::UpdateTexturesEndFrame()
 void ImGui::UpdateFontsNewFrame()
 {
     ImGuiContext& g = *GImGui;
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     if ((g.IO.BackendFlags & ImGuiBackendFlags_RendererHasTextures) == 0)
         for (ImFontAtlas* atlas : g.FontAtlases)
             atlas->Locked = true;
+#endif // DALAMUD_CUSTOM
 
     if (g.Style._NextFrameFontSizeBase != 0.0f)
     {
@@ -9897,7 +9984,11 @@ void ImGui::UpdateFontsNewFrame()
     // Apply default font size the first time
     ImFont* font = ImGui::GetDefaultFont();
     if (g.Style.FontSizeBase <= 0.0f)
+#ifdef DALAMUD_CUSTOM
+        g.Style.FontSizeBase = FONT_DEFAULT_SIZE_BASE;
+#else
         g.Style.FontSizeBase = (font->LegacySize > 0.0f ? font->LegacySize : FONT_DEFAULT_SIZE_BASE);
+#endif // DALAMUD_CUSTOM
 
     // Set initial font
     g.Font = font;
@@ -9906,7 +9997,11 @@ void ImGui::UpdateFontsNewFrame()
     ImFontStackData font_stack_data = { font, g.Style.FontSizeBase, g.Style.FontSizeBase };           // <--- Will restore FontSize
     SetCurrentFont(font_stack_data.Font, font_stack_data.FontSizeBeforeScaling, 0.0f); // <--- but use 0.0f to enable scale
     g.FontStack.push_back(font_stack_data);
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     IM_ASSERT(g.Font->IsLoaded());
+#endif // DALAMUD_CUSTOM
 }
 
 void ImGui::UpdateFontsEndFrame()
@@ -9917,10 +10012,15 @@ void ImGui::UpdateFontsEndFrame()
 ImFont* ImGui::GetDefaultFont()
 {
     ImGuiContext& g = *GImGui;
+#ifdef DALAMUD_CUSTOM
+    IM_ASSERT(g.IO.FontDefault != NULL && "Provide an ImFont implementation to io.FontDefault before calling NewFrame().");
+    return g.IO.FontDefault;
+#else
     ImFontAtlas* atlas = g.IO.Fonts;
     if (atlas->Builder == NULL || atlas->Fonts.Size == 0)
         ImFontAtlasBuildMain(atlas);
     return g.IO.FontDefault ? g.IO.FontDefault : atlas->Fonts[0];
+#endif // DALAMUD_CUSTOM
 }
 
 // EXPERIMENTAL. Use ImTextureDataQueueUpload() to queue updates. Textures logic will be automatically be updated in NewFrame().
@@ -9939,6 +10039,9 @@ void ImGui::UnregisterUserTexture(ImTextureData* tex)
     g.UserTextures.find_erase(tex);
 }
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 void ImGui::RegisterFontAtlas(ImFontAtlas* atlas)
 {
     ImGuiContext& g = *GImGui;
@@ -9961,6 +10064,7 @@ void ImGui::UnregisterFontAtlas(ImFontAtlas* atlas)
     for (ImTextureData* tex : atlas->TexList)
         tex->RefCount = (unsigned short)atlas->RefCount;
 }
+#endif // DALAMUD_CUSTOM
 
 // Use ImDrawList::_SetTexture(), making our shared g.FontStack[] authoritative against window-local ImDrawList.
 // - Whereas ImDrawList::PushTexture()/PopTexture() is not to be used across Begin() calls.
@@ -9978,6 +10082,9 @@ void ImGui::SetCurrentFont(ImFont* font, float font_size_before_scaling, float f
     UpdateCurrentFontSize(font_size_after_scaling);
 
     if (font != NULL)
+#ifdef DALAMUD_CUSTOM
+        g.DrawListSharedData.Font = font;
+#else
     {
         IM_ASSERT(font && font->IsLoaded());    // Font Atlas not created. Did you call io.Fonts->GetTexDataAsRGBA32 / GetTexDataAsAlpha8 ?
 #ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
@@ -9990,6 +10097,7 @@ void ImGui::SetCurrentFont(ImFont* font, float font_size_before_scaling, float f
         if (g.CurrentWindow != NULL)
             g.CurrentWindow->DrawList->_SetTexture(atlas->TexRef);
     }
+#endif // DALAMUD_CUSTOM
 }
 
 void ImGui::UpdateCurrentFontSize(float restore_font_size_after_scaling)
@@ -10016,8 +10124,12 @@ void ImGui::UpdateCurrentFontSize(float restore_font_size_after_scaling)
         // Legacy scale factors
 #ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
         final_size *= g.IO.FontGlobalScale; // Use style.FontScaleMain instead!
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
         if (g.Font != NULL)
             final_size *= g.Font->Scale;    // Was never really useful.
+#endif // DALAMUD_CUSTOM
 #endif
     }
 
@@ -10026,11 +10138,18 @@ void ImGui::UpdateCurrentFontSize(float restore_font_size_after_scaling)
     // - We may support it better later and remove this rounding.
     final_size = GetRoundedFontSize(final_size);
     final_size = ImClamp(final_size, 1.0f, IMGUI_FONT_SIZE_MAX);
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     if (g.Font != NULL && (g.IO.BackendFlags & ImGuiBackendFlags_RendererHasTextures))
         g.Font->CurrentRasterizerDensity = g.CurrentPixelDensity;
+#endif // DALAMUD_CUSTOM
 
     g.FontSize = final_size;
     g.DrawListSharedData.FontSize = g.FontSize;
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 
     // Early out to avoid hidden window keeping bakes referenced and out of GC reach.
     // - However this leave a pretty subtle and damning error surface area if g.FontBaked was mismatching.
@@ -10047,6 +10166,7 @@ void ImGui::UpdateCurrentFontSize(float restore_font_size_after_scaling)
     g.FontBaked = (g.Font != NULL && window != NULL) ? g.Font->GetFontBaked(final_size) : NULL;
     g.FontBakedScale = (g.FontBaked != NULL) ? (g.FontSize / g.FontBaked->Size) : 0.0f;
     g.DrawListSharedData.FontScale = g.FontBakedScale;
+#endif // DALAMUD_CUSTOM
 }
 
 // Exposed in case user may want to override setting density.
@@ -22549,11 +22669,15 @@ void ImGui::DebugTextEncoding(const char* str)
         }
         TableNextColumn();
         TextUnformatted(p, p + c_utf8_len);
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
         if (!GetFont()->IsGlyphInFont((ImWchar)c))
         {
             SameLine();
             TextUnformatted("[missing]");
         }
+#endif // DALAMUD_CUSTOM
         TableNextColumn();
         Text("U+%04X", (int)c);
         p += c_utf8_len;
@@ -22611,6 +22735,9 @@ static const char* FormatTextureRefForDebugDisplay(char* buf, int buf_size, ImTe
 namespace ImGuiFreeType { IMGUI_API const ImFontLoader* GetFontLoader(); IMGUI_API bool DebugEditFontLoaderFlags(unsigned int* p_font_builder_flags); }
 #endif
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 // [DEBUG] List fonts in a font atlas and display its texture
 void ImGui::ShowFontAtlas(ImFontAtlas* atlas)
 {
@@ -22766,7 +22893,12 @@ void ImGui::ShowFontAtlas(ImFontAtlas* atlas)
     }
 }
 
+#endif // DALAMUD_CUSTOM
+#ifdef DALAMUD_CUSTOM
+void ImGui::DebugNodeTexture(ImTextureData* tex, int int_id, const ImTextureRect* highlight_rect)
+#else
 void ImGui::DebugNodeTexture(ImTextureData* tex, int int_id, const ImFontAtlasRect* highlight_rect)
+#endif // DALAMUD_CUSTOM
 {
     ImGuiContext& g = *GImGui;
     PushID(int_id);
@@ -23087,6 +23219,14 @@ void ImGui::ShowMetricsWindow(bool* p_open)
         TreePop();
     }
 
+#ifdef DALAMUD_CUSTOM
+    if (TreeNode("Textures", "Textures (%d)", g.UserTextures.Size))
+    {
+        for (int tex_n = 0; tex_n < g.UserTextures.Size; tex_n++)
+            DebugNodeTexture(g.UserTextures[tex_n], tex_n);
+        TreePop();
+    }
+#else
     // Details for Fonts
     for (ImFontAtlas* atlas : g.FontAtlases)
         if (TreeNode((void*)atlas, "Fonts (%d), Textures (%d)", atlas->Fonts.Size, atlas->TexList.Size))
@@ -23094,6 +23234,7 @@ void ImGui::ShowMetricsWindow(bool* p_open)
             ShowFontAtlas(atlas);
             TreePop();
         }
+#endif // DALAMUD_CUSTOM
 
     // Details for Popups
     if (TreeNode("Popups", "Popups (%d)", g.OpenPopupStack.Size))
@@ -23797,6 +23938,9 @@ void ImGui::DebugNodeDrawCmdShowMeshAndBoundingBox(ImDrawList* out_draw_list, co
     out_draw_list->PopDrawFlag();
 }
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 // [DEBUG] Compute mask of inputs with the same codepoint.
 static int CalcFontGlyphSrcOverlapMask(ImFontAtlas* atlas, ImFont* font, unsigned int codepoint)
 {
@@ -24032,6 +24176,7 @@ void ImGui::DebugNodeFontGlyph(ImFont* font, const ImFontGlyph* glyph)
     }
     Text("SourceIdx: %d", glyph->SourceIdx);
 }
+#endif // DALAMUD_CUSTOM
 
 // [DEBUG] Display contents of ImGuiStorage
 void ImGui::DebugNodeStorage(ImGuiStorage* storage, const char* label)
@@ -24786,6 +24931,9 @@ void ImGui::DebugHookIdInfo(ImGuiID, ImGuiDataType, const void*, const void*) {}
 
 #endif // #ifndef IMGUI_DISABLE_DEBUG_TOOLS
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 #if !defined(IMGUI_DISABLE_DEMO_WINDOWS) || !defined(IMGUI_DISABLE_DEBUG_TOOLS)
 // Demo helper function to select among loaded fonts.
 // Here we use the regular BeginCombo()/EndCombo() api which is the more flexible one.
@@ -24819,6 +24967,7 @@ void ImGui::ShowFontSelector(const char* label)
             "- Legacy backend: if you need to add/remove fonts at runtime (e.g. for DPI change), do it before calling NewFrame().");
 }
 #endif // #if !defined(IMGUI_DISABLE_DEMO_WINDOWS) || !defined(IMGUI_DISABLE_DEBUG_TOOLS)
+#endif // DALAMUD_CUSTOM
 
 //-----------------------------------------------------------------------------
 
