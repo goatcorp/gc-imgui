@@ -2089,6 +2089,10 @@ enum ImGuiMouseButton_
     ImGuiMouseButton_Left = 0,
     ImGuiMouseButton_Right = 1,
     ImGuiMouseButton_Middle = 2,
+#ifdef DALAMUD_CUSTOM
+    ImGuiMouseButton_X1 = 3,
+    ImGuiMouseButton_X2 = 4,
+#endif // DALAMUD_CUSTOM
     ImGuiMouseButton_COUNT = 5
 };
 
