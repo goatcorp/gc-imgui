@@ -1330,6 +1330,9 @@ enum ImGuiItemFlags_
     //   - If you use MixedMode and the simplest solution is to ensure LiveEdit is off but widgets where this applies.
     //---------------------------------------------------------------------------------
     ImGuiItemFlags_MixedValue               = 1 << 9,   // false    // [BETA] Represent a mixed/indeterminate value. Replace value label with "-" and apply edits on validation.
+#ifdef DALAMUD_CUSTOM
+    ImGuiItemFlags_ParseLabelFromEnd        = 1 << 18,  // false    // Labels/string IDs are parsed from the end.
+#endif // DALAMUD_CUSTOM
 };
 
 // Flags for ImGui::InputText()

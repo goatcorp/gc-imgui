@@ -3788,6 +3788,9 @@ namespace ImGui
     IMGUI_API void          PushOverrideID(ImGuiID id);     // Push given value as-is at the top of the ID stack (whereas PushID combines old and new hashes)
     IMGUI_API ImGuiID       GetIDWithSeed(const char* str_id_begin, const char* str_id_end, ImGuiID seed);
     IMGUI_API ImGuiID       GetIDWithSeed(int n, ImGuiID seed);
+#ifdef DALAMUD_CUSTOM
+    IMGUI_API ImGuiID       HashLabel(const char* str, const char* str_end, ImGuiID seed); // Hash a label or a string ID. Parses it from the end if ImGuiItemFlags_ParseLabelFromEnd is set, or with "###" handling otherwise.
+#endif // DALAMUD_CUSTOM
 
     // Basic Helpers for widget code
     IMGUI_API void          ItemSize(const ImVec2& size, float text_baseline_y = -1.0f);

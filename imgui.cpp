@@ -4051,8 +4051,40 @@ const char* ImGui::GetStyleColorName(ImGuiCol idx)
 // Also see imgui_draw.cpp for some more which have been reworked to not rely on ImGui:: context.
 //-----------------------------------------------------------------------------
 
+#ifdef DALAMUD_CUSTOM
+static const char* ImParseLabelFromEnd(const char* text, const char* text_end, const char** out_id_begin)
+{
+    *out_id_begin = text;
+    for (ptrdiff_t i = (text_end - text) - 2; i >= 0; i--)
+    {
+        if (text[i] != '#' || text[i + 1] != '#')
+            continue;
+        if (i > 0 && text[i - 1] == '#')
+        {
+            *out_id_begin = text + i + 2;
+            return text + i - 1;
+        }
+        return text + i;
+    }
+    return text_end;
+}
+#endif // DALAMUD_CUSTOM
+
 const char* ImGui::FindRenderedTextEnd(const char* text, const char* text_end)
 {
+#ifdef DALAMUD_CUSTOM
+    if (GImGui->CurrentItemFlags & ImGuiItemFlags_ParseLabelFromEnd)
+    {
+        // Callers such as RenderTextClipped() parse a label that was already cut at a displayed "##" again.
+        // The text after text_end must then be NUL-terminated, to tell that it was cut there.
+        const char* id_begin;
+        if (!text_end)
+            text_end = text + ImStrlen(text);
+        else if (text_end[0] == '#' && text_end[1] == '#' && ImParseLabelFromEnd(text_end, text_end + ImStrlen(text_end), &id_begin) == text_end)
+            return text_end;
+        return ImParseLabelFromEnd(text, text_end, &id_begin);
+    }
+#endif // DALAMUD_CUSTOM
     const char* text_display_end = text;
     if (!text_end)
         text_end = (const char*)-1;
@@ -10063,7 +10095,11 @@ IM_MSVC_RUNTIME_CHECKS_OFF
 ImGuiID ImGuiWindow::GetID(const char* str, const char* str_end)
 {
     ImGuiID seed = IDStack.back();
+#ifdef DALAMUD_CUSTOM
+    ImGuiID id = ImGui::HashLabel(str, str_end, seed);
+#else
     ImGuiID id = ImHashStr(str, str_end ? (str_end - str) : 0, seed);
+#endif // DALAMUD_CUSTOM
 #ifndef IMGUI_DISABLE_DEBUG_TOOLS
     ImGuiContext& g = *Ctx;
     if (g.DebugHookIdInfoId == id)
@@ -10131,6 +10167,22 @@ void ImGui::PushID(const char* str_id_begin, const char* str_id_end)
     window->IDStack.push_back(id);
 }
 
+#ifdef DALAMUD_CUSTOM
+ImGuiID ImGui::HashLabel(const char* str, const char* str_end, ImGuiID seed)
+{
+    ImGuiContext& g = *GImGui;
+    if (g.CurrentItemFlags & ImGuiItemFlags_ParseLabelFromEnd)
+    {
+        size_t len = str_end ? (size_t)(str_end - str) : 0;
+        str_end = str + (len != 0 ? len : ImStrlen(str));
+        const char* id_begin;
+        ImParseLabelFromEnd(str, str_end, &id_begin);
+        return ImHashData(id_begin, (size_t)(str_end - id_begin), seed);
+    }
+    return ImHashStr(str, str_end ? (str_end - str) : 0, seed);
+}
+#endif // DALAMUD_CUSTOM
+
 void ImGui::PushID(const void* ptr_id)
 {
     ImGuiContext& g = *GImGui;
@@ -10164,7 +10216,11 @@ void ImGui::PushOverrideID(ImGuiID id)
 //  for that to work we would need to do PushOverrideID() -> ItemAdd() -> PopID() which would alter widget code a little more)
 ImGuiID ImGui::GetIDWithSeed(const char* str, const char* str_end, ImGuiID seed)
 {
+#ifdef DALAMUD_CUSTOM
+    ImGuiID id = HashLabel(str, str_end, seed);
+#else
     ImGuiID id = ImHashStr(str, str_end ? (str_end - str) : 0, seed);
+#endif // DALAMUD_CUSTOM
 #ifndef IMGUI_DISABLE_DEBUG_TOOLS
     ImGuiContext& g = *GImGui;
     if (g.DebugHookIdInfoId == id)

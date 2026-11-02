@@ -1751,7 +1751,11 @@ void ImGui::TableSetupColumn(const char* label, ImGuiTableColumnFlags flags, flo
         name_offset = (ImS16)table->ColumnsNames.size();
         table->ColumnsNames.append(label, label + ImStrlen(label) + 1);
     }
+#ifdef DALAMUD_CUSTOM
+    const ImGuiID column_id = (label != NULL && label[0] != 0) ? HashLabel(label, NULL, 0) : 0;
+#else
     const ImGuiID column_id = (label != NULL && label[0] != 0) ? ImHashStr(label) : 0;
+#endif // DALAMUD_CUSTOM
 
     // When ID changed or a column moved: defer the request until layout where we will process full reconcile.
     const int column_idx = table->DeclColumnsCount++;
