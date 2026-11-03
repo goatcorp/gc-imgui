@@ -295,8 +295,8 @@ extern IMGUI_API ImGuiContext* GImGui;  // Current implicit context pointer
 #define IM_MEMALIGN(_OFF,_ALIGN)        (((_OFF) + ((_ALIGN) - 1)) & ~((_ALIGN) - 1))           // Memory align e.g. IM_ALIGN(0,4)=0, IM_ALIGN(1,4)=4, IM_ALIGN(4,4)=4, IM_ALIGN(5,4)=8
 #define IM_F32_TO_INT8_UNBOUND(_VAL)    ((int)((_VAL) * 255.0f + ((_VAL)>=0 ? 0.5f : -0.5f)))   // Unsaturated, for display purpose
 #define IM_F32_TO_INT8_SAT(_VAL)        ((int)(ImSaturate(_VAL) * 255.0f + 0.5f))               // Saturated, always output 0..255
-#define IM_TRUNC(_VAL)                  ((float)(int)(_VAL))                                    // Positive values only! ImTrunc() is not inlined in MSVC debug builds
-#define IM_ROUND(_VAL)                  ((float)(int)((_VAL) + 0.5f))                           // Positive values only!
+#define IM_TRUNC(_VAL)                  ((float)(int)(_VAL))                                    // Positive values only! == ImTrunc() which is not inlined in MSVC debug builds
+#define IM_ROUND(_VAL)                  ((float)(int)((_VAL) + 0.5f))                           // Positive values only! == ImRoundPositive() which is not inlined in MSVC debug builds.
 //#define IM_FLOOR IM_TRUNC             // [OBSOLETE] Renamed in 1.90.0 (Sept 2023)
 
 // Hint for branch prediction
@@ -457,6 +457,9 @@ enum ImDrawTextFlags_
     ImDrawTextFlags_WrapKeepBlanks      = 1 << 1,
     ImDrawTextFlags_StopOnNewLine       = 1 << 2,
 };
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 IMGUI_API ImVec2        ImFontCalcTextSizeEx(ImFont* font, float size, float max_width, float wrap_width, const char* text_begin, const char* text_end_display, const char* text_end, const char** out_remaining, ImVec2* out_offset, ImDrawTextFlags flags);
 IMGUI_API const char*   ImFontCalcWordWrapPositionEx(ImFont* font, float size, const char* text, const char* text_end, float wrap_width, ImDrawTextFlags flags = 0);
 IMGUI_API const char*   ImTextCalcWordWrapNextLineStart(const char* text, const char* text_end, ImDrawTextFlags flags = 0); // trim trailing space and find beginning of next line
@@ -470,6 +473,7 @@ IMGUI_API void          ImTextInitClassifiers();
 IMGUI_API void          ImTextClassifierClear(ImU32* bits, unsigned int codepoint_min, unsigned int codepoint_end, ImWcharClass char_class);
 IMGUI_API void          ImTextClassifierSetCharClass(ImU32* bits, unsigned int codepoint_min, unsigned int codepoint_end, ImWcharClass char_class, unsigned int c);
 IMGUI_API void          ImTextClassifierSetCharClassFromStr(ImU32* bits, unsigned int codepoint_min, unsigned int codepoint_end, ImWcharClass char_class, const char* s);
+#endif // DALAMUD_CUSTOM
 
 // Helpers: File System
 #ifdef IMGUI_DISABLE_FILE_FUNCTIONS
@@ -553,12 +557,15 @@ inline float  ImSaturate(float f)                                       { return
 inline float  ImLengthSqr(const ImVec2& lhs)                            { return (lhs.x * lhs.x) + (lhs.y * lhs.y); }
 inline float  ImLengthSqr(const ImVec4& lhs)                            { return (lhs.x * lhs.x) + (lhs.y * lhs.y) + (lhs.z * lhs.z) + (lhs.w * lhs.w); }
 inline float  ImInvLength(const ImVec2& lhs, float fail_value)          { float d = (lhs.x * lhs.x) + (lhs.y * lhs.y); if (d > 0.0f) return ImRsqrt(d); return fail_value; }
-inline float  ImTrunc(float f)                                          { return (float)(int)(f); }
+inline float  ImTrunc(float f)                                          { return (float)(int)(f); } // == IM_TRUNC()
 inline ImVec2 ImTrunc(const ImVec2& v)                                  { return ImVec2((float)(int)(v.x), (float)(int)(v.y)); }
+inline float  ImTrunc64(float f)                                        { return (float)(ImS64)(f); }
 inline float  ImFloor(float f)                                          { return (float)((f >= 0 || (float)(int)f == f) ? (int)f : (int)f - 1); } // Decent replacement for floorf()
 inline ImVec2 ImFloor(const ImVec2& v)                                  { return ImVec2(ImFloor(v.x), ImFloor(v.y)); }
-inline float  ImTrunc64(float f)                                        { return (float)(ImS64)(f); }
+inline float  ImRoundPositive(float f)                                  { return (float)(int)(f + 0.5f); } // == IM_ROUND(). Positive values only.
 inline float  ImRoundPositive64(float f)                                { return (float)(ImS64)(f + 0.5f); } // Positive values only.
+inline float  ImRoundSigned(float f)                                    { return (float)(int)(f >= 0.0f ? f + 0.5f : f - 0.5f); }
+inline ImVec2 ImRoundSigned(const ImVec2& v)                            { return ImVec2((float)(int)(v.x >= 0.0f ? v.x + 0.5f : v.x - 0.5f), (float)(int)(v.y >= 0.0f ? v.y + 0.5f : v.y - 0.5f)); }
 inline float  ImRoundSigned64(float f)                                  { return (float)(ImS64)(f >= 0.0f ? f + 0.5f : f - 0.5f); }
 inline float  ImCeilFast(float f)                                       { int i = (int)f; return (float)(i + (f > (float)i)); } // Consider using the bit-hack version (search for "0x1p120f").
 inline int    ImModPositive(int a, int b)                               { return (a + b) % b; }
@@ -663,6 +670,7 @@ struct IMGUI_API ImRect
     void        TranslateY(float dy)                { Min.y += dy; Max.y += dy; }
     void        ClipWith(const ImRect& r)           { Min = ImMax(Min, r.Min); Max = ImMin(Max, r.Max); }                   // Simple version, may lead to an inverted rectangle, which is fine for Contains/Overlaps test but not for display.
     void        ClipWithFull(const ImRect& r)       { Min = ImClamp(Min, r.Min, r.Max); Max = ImClamp(Max, r.Min, r.Max); } // Full version, ensure both points are fully clipped.
+    void        ShrinkClamp(const ImVec2& inset_min, const ImVec2& inset_max) { Min.x = ImMin(Min.x + inset_min.x, Max.x); Min.y = ImMin(Min.y + inset_min.y, Max.y); Max.x = ImMax(Max.x - inset_max.x, Min.x); Max.y = ImMax(Max.y - inset_max.y, Min.y); }
     bool        IsInverted() const                  { return Min.x > Max.x || Min.y > Max.y; }
     ImVec4      ToVec4() const                      { return ImVec4(Min.x, Min.y, Max.x, Max.y); }
     const ImVec4& AsVec4() const                    { return *(const ImVec4*)&Min.x; }
@@ -951,6 +959,9 @@ IMGUI_API ImGuiStoragePair* ImLowerBound(ImGuiStoragePair* in_begin, ImGuiStorag
 #endif
 #define IM_DRAWLIST_TEX_LINES_DETAILED_WIDTH_COUNT  ((IM_DRAWLIST_TEX_LINES_DETAILED_WIDTH - 1) * IM_DRAWLIST_TEX_LINES_SAMPLE_COUNT + 1)
 
+#ifdef DALAMUD_CUSTOM
+#include "imgui_dalamud_text_internal.h"
+#endif // DALAMUD_CUSTOM
 // Data shared between all ImDrawList instances
 // Conceptually this could have been called e.g. ImDrawListSharedContext
 // Typically one ImGui context would create and maintain one of this.
@@ -963,6 +974,12 @@ struct IMGUI_API ImDrawListSharedData
     ImFontAtlas*    FontAtlas;                  // Current font atlas
     ImFont*         Font;                       // Current font (used for simplified AddText overload)
     float           FontSize;                   // Current font size (used for simplified AddText overload)
+#ifdef DALAMUD_CUSTOM
+    ImDrawShapeTexUvs ShapeTexUvs;              // UVs within ShapeTex/custom textures with the block, for use with TexUv*
+    ImTextureData*  ShapeTex;                   // ImGui-owned base shape texture
+    ImTextLayoutFn  TextLayoutFn;               // See ImGui::SetTextCallbacks()
+    ImFontMetricsFn FontMetricsFn;              // See ImGui::SetTextCallbacks()
+#endif // DALAMUD_CUSTOM
     float           FontScale;                  // Current font scale (== FontSize / Font->FontSize)
     float           CurveTessellationMaxError;  // Tessellation tolerance when using PathBezierCurveTo()
     float           CircleTessellationMaxError; // Number of circle segments to use per pixel of radius for AddCircle() etc
@@ -2799,8 +2816,12 @@ struct ImGuiContext
     ImGuiInputTextState     InputTextState;
     ImGuiTextIndex          InputTextLineIndex;                 // Temporary storage
     ImGuiInputTextDeactivatedState InputTextDeactivatedState;
+#ifdef DALAMUD_CUSTOM
+    int                     InputTextPasswordMaskCount;         // > 0 while PushPasswordFont() is active
+#else
     ImFontBaked             InputTextPasswordFontBackupBaked;
     ImFontFlags             InputTextPasswordFontBackupFlags;
+#endif // DALAMUD_CUSTOM
     ImGuiID                 InputTextReactivateId;              // ID of InputText to reactivate on next frame (for io.ConfigInputTextEnterKeepActive behavior)
     ImGuiID                 TempInputId;                        // Temporary text input when using Ctrl+Click on a slider, etc.
     ImGuiDataTypeStorage    DataTypeZeroValue;                  // 0 for all data types
@@ -3122,6 +3143,9 @@ struct IMGUI_API ImGuiWindow
     ImGuiDockNode*          DockNodeAsHost;                     // Which node are we owning (for parent windows)
     ImGuiID                 DockId;                             // Backup of last valid DockNode->ID, so single window remember their dock node id even when they are not bound any more
 
+#ifdef DALAMUD_CUSTOM
+    bool                    InheritNoInputs;                    // Inherit NoInputs from parent window
+#endif // DALAMUD_CUSTOM
 public:
     ImGuiWindow(ImGuiContext* context, const char* name);
     ~ImGuiWindow();
@@ -3169,7 +3193,7 @@ struct ImGuiTabItem
     ImGuiID             ID;
     ImGuiTabItemFlags   Flags;
     ImGuiWindow*        Window;                 // When TabItem is part of a DockNode's TabBar, we hold on to a window.
-    int                 LastFrameVisible;
+    int                 LastFrameVisible;       // TabItem visibility (not contents visibility)
     int                 LastFrameSelected;      // This allows us to infer an ordered list of the last activated tabs with little maintenance
     float               Offset;                 // Position relative to beginning of tab bar
     float               Width;                  // Width currently displayed
@@ -3179,6 +3203,7 @@ struct ImGuiTabItem
     ImS16               BeginOrder;             // BeginTabItem() order, used to re-order tabs after toggling ImGuiTabBarFlags_Reorderable
     ImS16               IndexDuringLayout;      // Index only used during TabBarLayout(). Tabs gets reordered so 'Tabs[n].IndexDuringLayout == n' but may mismatch during additions.
     bool                WantClose;              // Marked as closed by SetTabItemClosed()
+    bool                ContentsIsVisible;
 
     ImGuiTabItem()      { memset((void*)this, 0, sizeof(*this)); LastFrameVisible = LastFrameSelected = -1; RequestedWidth = -1.0f; NameOffset = -1; BeginOrder = IndexDuringLayout = -1; }
 };
@@ -3193,7 +3218,7 @@ struct IMGUI_API ImGuiTabBar
     ImGuiID             SelectedTabId;          // Selected tab/window
     ImGuiID             NextSelectedTabId;      // Next selected tab/window. Will also trigger a scrolling animation
     ImGuiID             NextScrollToTabId;
-    ImGuiID             VisibleTabId;           // Can occasionally be != SelectedTabId (e.g. when previewing contents for Ctrl+Tab preview)
+    ImGuiID             VisibleTabContentsId;   // Can occasionally be != SelectedTabId (e.g. when previewing contents for Ctrl+Tab preview)
     int                 CurrFrameVisible;
     int                 PrevFrameVisible;
     ImRect              BarRect;
@@ -3215,6 +3240,7 @@ struct IMGUI_API ImGuiTabBar
     ImS8                BeginCount;
     bool                WantLayout;
     bool                VisibleTabWasSubmitted;
+    bool                LastTabItemContentsAppearing;
     bool                TabsAddedNew;           // Set to true when a new tab item or button has been added to the tab bar during last frame
     bool                ScrollButtonEnabled;
     ImS16               TabsActiveCount;        // Number of tabs submitted this frame.
@@ -3387,6 +3413,7 @@ struct IMGUI_API ImGuiTable
     ImU32                       BorderColorLight;
     float                       BorderX1;
     float                       BorderX2;
+    float                       BorderSize;
     float                       HostIndentX;
     float                       MinColumnWidth;
     float                       OuterPaddingX;
@@ -3689,8 +3716,12 @@ namespace ImGui
     // Fonts, drawing
     IMGUI_API void          RegisterUserTexture(ImTextureData* tex); // Register external texture. EXPERIMENTAL.
     IMGUI_API void          UnregisterUserTexture(ImTextureData* tex);
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     IMGUI_API void          RegisterFontAtlas(ImFontAtlas* atlas);
     IMGUI_API void          UnregisterFontAtlas(ImFontAtlas* atlas);
+#endif // DALAMUD_CUSTOM
     IMGUI_API void          SetCurrentFont(ImFont* font, float font_size_before_scaling, float font_size_after_scaling);
     IMGUI_API void          UpdateCurrentFontSize(float restore_font_size_after_scaling);
     IMGUI_API void          SetPixelDensity(float pixel_density); // was SetFontRasterizerDensity()
@@ -3778,6 +3809,9 @@ namespace ImGui
     IMGUI_API void          PushOverrideID(ImGuiID id);     // Push given value as-is at the top of the ID stack (whereas PushID combines old and new hashes)
     IMGUI_API ImGuiID       GetIDWithSeed(const char* str_id_begin, const char* str_id_end, ImGuiID seed);
     IMGUI_API ImGuiID       GetIDWithSeed(int n, ImGuiID seed);
+#ifdef DALAMUD_CUSTOM
+    IMGUI_API ImGuiID       HashLabel(const char* str, const char* str_end, ImGuiID seed); // Hash a label or a string ID. Parses it from the end if ImGuiItemFlags_ParseLabelFromEnd is set, or with "###" handling otherwise.
+#endif // DALAMUD_CUSTOM
 
     // Basic Helpers for widget code
     IMGUI_API void          ItemSize(const ImVec2& size, float text_baseline_y = -1.0f);
@@ -4069,6 +4103,7 @@ namespace ImGui
     IMGUI_API void          TabBarQueueReorderFromMousePos(ImGuiTabBar* tab_bar, ImGuiTabItem* tab, ImVec2 mouse_pos);
     IMGUI_API bool          TabBarProcessReorder(ImGuiTabBar* tab_bar);
     IMGUI_API bool          TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, ImGuiTabItemFlags flags, ImGuiWindow* docked_window);
+    IMGUI_API bool          TabItemIsContentsAppearing();
     IMGUI_API void          TabItemSpacing(const char* str_id, ImGuiTabItemFlags flags, float width);
     IMGUI_API ImVec2        TabItemCalcSize(const char* label, bool has_close_button_or_unsaved_marker);
     IMGUI_API ImVec2        TabItemCalcSize(ImGuiWindow* window);
@@ -4096,9 +4131,9 @@ namespace ImGui
 
     // Render helpers (those functions don't access any ImGui state!)
     IMGUI_API void          RenderArrow(ImDrawList* draw_list, ImVec2 pos, ImU32 col, ImGuiDir dir, float scale = 1.0f);
+    IMGUI_API void          RenderArrowEx(ImDrawList* draw_list, ImVec2 pos, ImU32 col, float cos_a, float sin_a, float scale, ImVec2 arrow_sizes, float arrow_th);
     IMGUI_API void          RenderBullet(ImDrawList* draw_list, ImVec2 pos, ImU32 col);
     IMGUI_API void          RenderCheckMark(ImDrawList* draw_list, ImVec2 pos, ImU32 col, float sz);
-    IMGUI_API void          RenderArrowPointingAt(ImDrawList* draw_list, ImVec2 pos, ImVec2 half_sz, ImGuiDir direction, ImU32 col);
     IMGUI_API void          RenderArrowDockMenu(ImDrawList* draw_list, ImVec2 p_min, float sz, ImU32 col);
     IMGUI_API void          RenderRectFilledInRangeH(ImDrawList* draw_list, const ImRect& rect, ImU32 col, float fill_x0, float fill_x1, float rounding);
     IMGUI_API void          RenderRectFilledWithHole(ImDrawList* draw_list, const ImRect& outer, const ImRect& inner, ImU32 col, float rounding);
@@ -4172,6 +4207,10 @@ namespace ImGui
     IMGUI_API void          SetNextItemRefVal(ImGuiDataType data_type, void* p_data);
     inline bool             IsItemActiveAsInputText() { ImGuiContext& g = *GImGui; return g.ActiveId != 0 && g.ActiveId == g.LastItemData.ID && g.InputTextState.ID == g.LastItemData.ID; } // This may be useful to apply workaround that a based on distinguish whenever an item is active as a text input field.
 
+#ifdef DALAMUD_CUSTOM
+    IMGUI_API void Custom_StbTextMakeUndoReplace(ImGuiInputTextState* str, int where, int old_length, int new_length);
+    IMGUI_API void Custom_StbTextUndo(ImGuiInputTextState* str);
+#endif // DALAMUD_CUSTOM
     // Color
     IMGUI_API void          ColorTooltip(const char* text, const float* col, ImGuiColorEditFlags flags);
     IMGUI_API void          ColorEditOptionsPopup(const float* col, ImGuiColorEditFlags flags);
@@ -4216,17 +4255,25 @@ namespace ImGui
     IMGUI_API void          DebugBreakClearData();
     IMGUI_API bool          DebugBreakButton(const char* label, const char* description_of_location);
     IMGUI_API void          DebugBreakButtonTooltip(bool keyboard_only, const char* description_of_location);
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     IMGUI_API void          ShowFontAtlas(ImFontAtlas* atlas);
+#endif // DALAMUD_CUSTOM
     IMGUI_API ImU64         DebugTextureIDToU64(ImTextureID tex_id);
     IMGUI_API void          DebugHookIdInfo(ImGuiID id, ImGuiDataType data_type, const void* data_id, const void* data_id_end);
     IMGUI_API void          DebugNodeColumns(ImGuiOldColumns* columns);
     IMGUI_API void          DebugNodeDockNode(ImGuiDockNode* node, const char* label);
     IMGUI_API void          DebugNodeDrawList(ImGuiWindow* window, ImGuiViewportP* viewport, const ImDrawList* draw_list, const char* label);
     IMGUI_API void          DebugNodeDrawCmdShowMeshAndBoundingBox(ImDrawList* out_draw_list, const ImDrawList* draw_list, const ImDrawCmd* draw_cmd, bool show_mesh, bool show_aabb);
+#ifdef DALAMUD_CUSTOM
+    IMGUI_API void          DebugNodeTexture(ImTextureData* tex, int int_id, const ImTextureRect* highlight_rect = NULL); // ID used to facilitate persisting the "current" texture.
+#else
     IMGUI_API void          DebugNodeFont(ImFont* font);
     IMGUI_API void          DebugNodeFontGlyphsForSrcMask(ImFont* font, ImFontBaked* baked, int src_mask);
     IMGUI_API void          DebugNodeFontGlyph(ImFont* font, const ImFontGlyph* glyph);
     IMGUI_API void          DebugNodeTexture(ImTextureData* tex, int int_id, const ImFontAtlasRect* highlight_rect = NULL); // ID used to facilitate persisting the "current" texture.
+#endif // DALAMUD_CUSTOM
     IMGUI_API void          DebugNodeStorage(ImGuiStorage* storage, const char* label);
     IMGUI_API void          DebugNodeTabBar(ImGuiTabBar* tab_bar, const char* label);
     IMGUI_API void          DebugNodeTable(ImGuiTable* table);
@@ -4264,6 +4311,9 @@ namespace ImGui
 // [SECTION] ImFontLoader
 //-----------------------------------------------------------------------------
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 // Hooks and storage for a given font backend.
 // This structure is likely to evolve as we add support for incremental atlas updates.
 // Conceptually this could be public, but API is still going to be evolve.
@@ -4293,19 +4343,27 @@ IMGUI_API const ImFontLoader* ImFontAtlasGetFontLoaderForStbTruetype();
 #ifndef IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 typedef ImFontLoader ImFontBuilderIO; // [renamed/changed in 1.92.0] The types are not actually compatible but we provide this as a compile-time error report helper.
 #endif
+#endif // DALAMUD_CUSTOM
 
 //-----------------------------------------------------------------------------
 // [SECTION] ImFontAtlas internal API
 //-----------------------------------------------------------------------------
 
+#ifdef DALAMUD_CUSTOM
+#define IMGUI_FONT_SIZE_MAX                                     (16384.0f)
+#else
 #define IMGUI_FONT_SIZE_MAX                                     (512.0f)
 #define IMGUI_FONT_SIZE_THRESHOLD_FOR_LOADADVANCEXONLYMODE      (128.0f)
+#endif // DALAMUD_CUSTOM
 
 // Helpers: ImTextureRef ==/!= operators provided as convenience
 // (note that _TexID and _TexData are never set simultaneously)
 inline bool operator==(const ImTextureRef& lhs, const ImTextureRef& rhs)    { return lhs._TexID == rhs._TexID && lhs._TexData == rhs._TexData; }
 inline bool operator!=(const ImTextureRef& lhs, const ImTextureRef& rhs)    { return lhs._TexID != rhs._TexID || lhs._TexData != rhs._TexData; }
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 // Refer to ImFontAtlasPackGetRect() to better understand how this works.
 #define ImFontAtlasRectId_IndexMask_        (0x0007FFFF)    // 20-bits signed: index to access builder->RectsIndex[].
 #define ImFontAtlasRectId_GenerationMask_   (0x3FF00000)    // 10-bits: entry generation, so each ID is unique and get can safely detected old identifiers.
@@ -4429,6 +4487,8 @@ IMGUI_API void              ImFontAtlasBakedAddFontGlyphAdvancedX(ImFontAtlas* a
 IMGUI_API void              ImFontAtlasBakedDiscardFontGlyph(ImFontAtlas* atlas, ImFont* font, ImFontBaked* baked, ImFontGlyph* glyph);
 IMGUI_API void              ImFontAtlasBakedSetFontGlyphBitmap(ImFontAtlas* atlas, ImFontBaked* baked, ImFontConfig* src, ImFontGlyph* glyph, ImTextureRect* r, const unsigned char* src_pixels, ImTextureFormat src_fmt, int src_pitch);
 
+IMGUI_API float             ImFontBaked_BuildLoadGlyphAdvanceX(ImFontBaked* baked, ImWchar codepoint);
+
 IMGUI_API void              ImFontAtlasPackInit(ImFontAtlas* atlas);
 IMGUI_API ImFontAtlasRectId ImFontAtlasPackAddRect(ImFontAtlas* atlas, int w, int h, ImFontAtlasRectEntry* overwrite_entry = NULL);
 IMGUI_API ImTextureRect*    ImFontAtlasPackGetRect(ImFontAtlas* atlas, ImFontAtlasRectId id);
@@ -4447,6 +4507,7 @@ IMGUI_API void              ImFontAtlasTextureBlockPostProcessMultiply(ImFontAtl
 IMGUI_API void              ImFontAtlasTextureBlockFill(ImTextureData* dst_tex, int dst_x, int dst_y, int w, int h, ImU32 col);
 IMGUI_API void              ImFontAtlasTextureBlockCopy(ImTextureData* src_tex, int src_x, int src_y, ImTextureData* dst_tex, int dst_x, int dst_y, int w, int h);
 IMGUI_API void              ImFontAtlasTextureBlockQueueUpload(ImFontAtlas* atlas, ImTextureData* tex, int x, int y, int w, int h);
+#endif // DALAMUD_CUSTOM
 
 IMGUI_API bool              ImTextureDataUpdateNewFrame(ImTextureData* tex);
 IMGUI_API void              ImTextureDataQueueUpload(ImTextureData* tex, int x, int y, int w, int h);
@@ -4454,11 +4515,15 @@ IMGUI_API int               ImTextureDataGetFormatBytesPerPixel(ImTextureFormat 
 IMGUI_API const char*       ImTextureDataGetStatusName(ImTextureStatus status);
 IMGUI_API const char*       ImTextureDataGetFormatName(ImTextureFormat format);
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 #ifndef IMGUI_DISABLE_DEBUG_TOOLS
 IMGUI_API void              ImFontAtlasDebugLogTextureRequests(ImFontAtlas* atlas);
 #endif
 
 IMGUI_API bool      ImFontAtlasGetMouseCursorTexData(ImFontAtlas* atlas, ImGuiMouseCursor cursor_type, ImVec2* out_offset, ImVec2* out_size, ImVec2 out_uv_border[2], ImVec2 out_uv_fill[2]);
+#endif // DALAMUD_CUSTOM
 
 //-----------------------------------------------------------------------------
 // [SECTION] Test Engine specific hooks (imgui_test_engine)

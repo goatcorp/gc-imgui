@@ -177,7 +177,11 @@ void ImGui::TextEx(const char* text, const char* text_end, ImGuiTextFlags flags)
     const ImVec2 text_pos(window->DC.CursorPos.x, window->DC.CursorPos.y + window->DC.CurrLineTextBaseOffset);
     const float wrap_pos_x = window->DC.TextWrapPos;
     const bool wrap_enabled = (wrap_pos_x >= 0.0f);
+#ifdef DALAMUD_CUSTOM
+    if (true)
+#else
     if (text_end - text <= 2000 || wrap_enabled)
+#endif // DALAMUD_CUSTOM
     {
         // Common case
         const float wrap_width = wrap_enabled ? CalcWrapWidthForPos(window->DC.CursorPos, wrap_pos_x) : 0.0f;
@@ -1567,7 +1571,11 @@ bool ImGui::TextLink(const char* label)
         ColorConvertHSVtoRGB(h, s, v, line_colf.x, line_colf.y, line_colf.z);
     }
 
+#ifdef DALAMUD_CUSTOM
+    float line_y = bb.Max.y + ImFloor(GetFontMetrics().Descent * 0.20f);
+#else
     float line_y = bb.Max.y + ImFloor(g.FontBaked->Descent * g.FontBakedScale * 0.20f);
+#endif // DALAMUD_CUSTOM
     window->DrawList->AddLineH(bb.Min.x, bb.Max.x, line_y, GetColorU32(line_colf), 1.0f * (float)(int)g.Style._MainScale); // FIXME-TEXT: Underline mode // FIXME-DPI
 
     PushStyleColor(ImGuiCol_Text, GetColorU32(text_colf));
@@ -4101,7 +4109,13 @@ static ImVec2 InputTextCalcTextSize(ImGuiContext* ctx, const char* text_begin, c
     ImGuiContext& g = *ctx;
     ImGuiInputTextState* obj = &g.InputTextState;
     IM_ASSERT(text_end_display >= text_begin && text_end_display <= text_end);
+#ifdef DALAMUD_CUSTOM
+    ImTextDesc desc;
+    ImGui::GetTextDesc(&desc, obj->WrapWidth, ImGui::ConvertDrawTextFlags(flags));
+    return ImGui::CalcTextSizeEx(g.Font, &desc, text_begin, text_end_display, text_end, out_remaining, out_offset);
+#else
     return ImFontCalcTextSizeEx(g.Font, g.FontSize, FLT_MAX, obj->WrapWidth, text_begin, text_end_display, text_end, out_remaining, out_offset, flags);
+#endif // DALAMUD_CUSTOM
 }
 
 // Wrapper for stb_textedit.h to edit text (our wrapper is for: statically sized buffer, single-line, wchar characters. InputText converts between UTF-8 and wchar)
@@ -4113,7 +4127,11 @@ namespace ImStb
 {
 static int     STB_TEXTEDIT_STRINGLEN(const ImGuiInputTextState* obj)                             { return obj->TextLen; }
 static char    STB_TEXTEDIT_GETCHAR(const ImGuiInputTextState* obj, int idx)                      { IM_ASSERT(idx >= 0 && idx <= obj->TextLen); return obj->TextSrc[idx]; }
+#ifdef DALAMUD_CUSTOM
+static float   STB_TEXTEDIT_GETWIDTH(ImGuiInputTextState* obj, int line_start_idx, int char_idx)  { return ImGui::InputTextCalcCharWidth(obj, line_start_idx, char_idx, IMSTB_TEXTEDIT_GETWIDTH_NEWLINE); }
+#else
 static float   STB_TEXTEDIT_GETWIDTH(ImGuiInputTextState* obj, int line_start_idx, int char_idx)  { unsigned int c; ImTextCharFromUtf8(&c, obj->TextSrc + line_start_idx + char_idx, obj->TextSrc + obj->TextLen); if ((ImWchar)c == '\n') return IMSTB_TEXTEDIT_GETWIDTH_NEWLINE; ImGuiContext& g = *obj->Ctx; return g.FontBaked->GetCharAdvance((ImWchar)c) * g.FontBakedScale; }
+#endif // DALAMUD_CUSTOM
 static char    STB_TEXTEDIT_NEWLINE = '\n';
 static void    STB_TEXTEDIT_LAYOUTROW(StbTexteditRow* r, ImGuiInputTextState* obj, int line_start_idx)
 {
@@ -4229,14 +4247,22 @@ static int STB_TEXTEDIT_MOVELINESTART_IMPL(ImGuiInputTextState* obj, ImStb::STB_
 
     if (obj->WrapWidth > 0.0f)
     {
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
         ImGuiContext& g = *obj->Ctx;
+#endif // DALAMUD_CUSTOM
         const char* p_cursor = obj->TextSrc + cursor;
         const char* p_bol = ImStrbol(p_cursor, obj->TextSrc);
         const char* p = p_bol;
         const char* text_end = obj->TextSrc + obj->TextLen; // End of line would be enough
         while (p >= p_bol)
         {
+#ifdef DALAMUD_CUSTOM
+            const char* p_eol = ImGui::CalcWrappedLineEnd(p, text_end, obj->WrapWidth, ImTextLayoutFlags_WrapKeepBlanks);
+#else
             const char* p_eol = ImFontCalcWordWrapPositionEx(g.Font, g.FontSize, p, text_end, obj->WrapWidth, ImDrawTextFlags_WrapKeepBlanks);
+#endif // DALAMUD_CUSTOM
             if (p == p_cursor) // If we are already on a visible beginning-of-line, return real beginning-of-line (would be same as regular handler below)
                 return (int)(p_bol - obj->TextSrc);
             if (p_eol == p_cursor && obj->TextSrc[cursor] != '\n' && obj->LastMoveDirectionLR == ImGuiDir_Left)
@@ -4266,13 +4292,21 @@ static int STB_TEXTEDIT_MOVELINEEND_IMPL(ImGuiInputTextState* obj, ImStb::STB_Te
 
     if (obj->WrapWidth > 0.0f)
     {
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
         ImGuiContext& g = *obj->Ctx;
+#endif // DALAMUD_CUSTOM
         const char* p_cursor = obj->TextSrc + cursor;
         const char* p = ImStrbol(p_cursor, obj->TextSrc);
         const char* text_end = obj->TextSrc + obj->TextLen; // End of line would be enough
         while (p < text_end)
         {
+#ifdef DALAMUD_CUSTOM
+            const char* p_eol = ImGui::CalcWrappedLineEnd(p, text_end, obj->WrapWidth, ImTextLayoutFlags_WrapKeepBlanks);
+#else
             const char* p_eol = ImFontCalcWordWrapPositionEx(g.Font, g.FontSize, p, text_end, obj->WrapWidth, ImDrawTextFlags_WrapKeepBlanks);
+#endif // DALAMUD_CUSTOM
             cursor = (int)(p_eol - obj->TextSrc);
             if (p_eol == p_cursor && obj->LastMoveDirectionLR != ImGuiDir_Left) // If we are already on a visible end-of-line, switch to regular handle
                 break;
@@ -4376,6 +4410,27 @@ static void stb_textedit_replace(ImGuiInputTextState* str, STB_TexteditState* st
     IM_ASSERT(0); // Failed to insert character, normally shouldn't happen because of how we currently use stb_textedit_replace()
 }
 
+#ifdef DALAMUD_CUSTOM
+static bool InputTextMoveKey(ImGuiInputTextState* str, int key)
+{
+    const bool shift = (key & STB_TEXTEDIT_K_SHIFT) != 0;
+    switch (key & ~STB_TEXTEDIT_K_SHIFT)
+    {
+    case STB_TEXTEDIT_K_LEFT:       return ImGui::InputTextMoveCursor(str, ImGuiInputTextMove_Left, shift);
+    case STB_TEXTEDIT_K_RIGHT:      return ImGui::InputTextMoveCursor(str, ImGuiInputTextMove_Right, shift);
+    case STB_TEXTEDIT_K_UP:         return ImGui::InputTextMoveCursor(str, ImGuiInputTextMove_Up, shift);
+    case STB_TEXTEDIT_K_DOWN:       return ImGui::InputTextMoveCursor(str, ImGuiInputTextMove_Down, shift);
+    case STB_TEXTEDIT_K_PGUP:       return ImGui::InputTextMoveCursor(str, ImGuiInputTextMove_PageUp, shift);
+    case STB_TEXTEDIT_K_PGDOWN:     return ImGui::InputTextMoveCursor(str, ImGuiInputTextMove_PageDown, shift);
+    case STB_TEXTEDIT_K_LINESTART:  return ImGui::InputTextMoveCursor(str, ImGuiInputTextMove_LineStart, shift);
+    case STB_TEXTEDIT_K_LINEEND:    return ImGui::InputTextMoveCursor(str, ImGuiInputTextMove_LineEnd, shift);
+    default:                        return false;
+    }
+}
+#define stb_textedit_key(str, state, key)       do { if (!ImStb::InputTextMoveKey(str, key)) stb_textedit_key(str, state, key); } while (0)
+#define stb_textedit_click(str, state, x, y)    ((void)&ImStb::stb_textedit_click, ImGui::InputTextClick(str, x, y, false)) // The address keeps the replaced function referenced.
+#define stb_textedit_drag(str, state, x, y)     ((void)&ImStb::stb_textedit_drag, ImGui::InputTextClick(str, x, y, true))
+#endif // DALAMUD_CUSTOM
 } // namespace ImStb
 
 // We added an extra indirection where 'Stb' is heap-allocated, in order facilitate the work of bindings generators.
@@ -4478,7 +4533,7 @@ void ImGuiInputTextCallbackData::InsertChars(int pos, const char* new_text, cons
     if (new_text_len + BufTextLen + 1 > obj->TextA.Size && is_resizable && !is_readonly)
     {
         IM_ASSERT(Buf == obj->TextA.Data);
-        int new_buf_size = BufTextLen + ImClamp(new_text_len * 4, 32, ImMax(256, new_text_len)) + 1;
+        int new_buf_size = BufTextLen + ImClamp(new_text_len, 32, ImMax(256, new_text_len)) + 1;
         obj->TextA.resize(new_buf_size + 1);
         obj->TextSrc = obj->TextA.Data;
         Buf = obj->TextA.Data;
@@ -4501,6 +4556,9 @@ void ImGuiInputTextCallbackData::InsertChars(int pos, const char* new_text, cons
 void ImGui::PushPasswordFont()
 {
     ImGuiContext& g = *GImGui;
+#ifdef DALAMUD_CUSTOM
+    g.InputTextPasswordMaskCount++;
+#else
     ImFontBaked* backup = &g.InputTextPasswordFontBackupBaked;
     IM_ASSERT(backup->IndexAdvanceX.Size == 0 && backup->IndexLookup.Size == 0);
     ImFontGlyph* glyph = g.FontBaked->FindGlyph('*');
@@ -4512,11 +4570,16 @@ void ImGui::PushPasswordFont()
     g.Font->Flags |= ImFontFlags_NoLoadGlyphs;
     g.FontBaked->FallbackGlyphIndex = g.FontBaked->Glyphs.index_from_ptr(glyph);
     g.FontBaked->FallbackAdvanceX = glyph->AdvanceX;
+#endif // DALAMUD_CUSTOM
 }
 
 void ImGui::PopPasswordFont()
 {
     ImGuiContext& g = *GImGui;
+#ifdef DALAMUD_CUSTOM
+    IM_ASSERT(g.InputTextPasswordMaskCount > 0);
+    g.InputTextPasswordMaskCount--;
+#else
     ImFontBaked* backup = &g.InputTextPasswordFontBackupBaked;
     g.Font->Flags = g.InputTextPasswordFontBackupFlags;
     g.FontBaked->FallbackGlyphIndex = backup->FallbackGlyphIndex;
@@ -4524,6 +4587,7 @@ void ImGui::PopPasswordFont()
     g.FontBaked->IndexLookup.swap(backup->IndexLookup);
     g.FontBaked->IndexAdvanceX.swap(backup->IndexAdvanceX);
     IM_ASSERT(backup->IndexAdvanceX.Size == 0 && backup->IndexLookup.Size == 0);
+#endif // DALAMUD_CUSTOM
 }
 
 // Return false to discard a character.
@@ -4726,12 +4790,18 @@ static int InputTextLineIndexBuild(ImGuiInputTextFlags flags, ImGuiTextIndex* li
     bool trailing_line_already_counted = false;
     if (flags & ImGuiInputTextFlags_WordWrap)
     {
+#ifdef DALAMUD_CUSTOM
+        IM_UNUSED(g);
+        size = ImGui::InputTextBuildWrappedLineIndex(line_index, buf, buf_end, wrap_width, max_output_buffer_size);
+        s = buf_end;
+#else
         for (s = buf; s < buf_end; s = (*s == '\n') ? s + 1 : s)
         {
             if (size++ <= max_output_buffer_size)
                 line_index->Offsets.push_back((int)(s - buf));
             s = ImFontCalcWordWrapPositionEx(g.Font, g.FontSize, s, buf_end, wrap_width, ImDrawTextFlags_WrapKeepBlanks);
         }
+#endif // DALAMUD_CUSTOM
     }
     else if (buf_end != NULL)
     {
@@ -4782,7 +4852,12 @@ static ImVec2 InputTextLineIndexGetPosOffset(ImGuiContext& g, ImGuiInputTextStat
     const int line_no = (it == it_begin) ? 0 : line_index->Offsets.index_from_ptr(it);
     const char* line_start = line_index->get_line_begin(buf, line_no);
     ImVec2 offset;
+#ifdef DALAMUD_CUSTOM
+    IM_UNUSED(line_start);
+    offset.x = ImGui::InputTextCaretX(buf, buf_end, cursor_n, state != NULL && state->WrapWidth > 0.0f && state->LastMoveDirectionLR == ImGuiDir_Right, state != NULL ? state->WrapWidth : 0.0f);
+#else
     offset.x = InputTextCalcTextSize(&g, line_start, cursor_ptr, buf_end, NULL, NULL, ImDrawTextFlags_WrapKeepBlanks).x;
+#endif // DALAMUD_CUSTOM
     offset.y = (line_no + 1) * g.FontSize;
     return offset;
 }
@@ -5712,8 +5787,17 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
             const ImU32 bg_color = GetColorU32(ImGuiCol_TextSelectedBg, render_cursor ? 1.0f : 0.6f); // FIXME: current code flow mandate that render_cursor is always true here, we are leaving the transparent one for tests.
             const float bg_offy_up = is_multiline ? 0.0f : -1.0f; // FIXME-DPI: those offsets should be part of the style? they don't play so well with multi-line selection.
             const float bg_offy_dn = is_multiline ? 0.0f : 2.0f;
+#ifdef DALAMUD_CUSTOM
+            const float bg_eol_width = IM_TRUNC(CalcTextSize(" ", NULL, false).x * 0.50f); // So we can see selected empty lines
+#else
             const float bg_eol_width = IM_TRUNC(g.FontBaked->GetCharAdvance((ImWchar)' ') * 0.50f); // So we can see selected empty lines
+#endif // DALAMUD_CUSTOM
 
+#ifdef DALAMUD_CUSTOM
+            InputTextRenderSelection(draw_window->DrawList, line_index, buf_display, buf_display_end, wrap_width,
+                ImMin(state->Stb->select_start, state->Stb->select_end), ImMax(state->Stb->select_start, state->Stb->select_end),
+                line_visible_n0, line_visible_n1, draw_pos - draw_scroll, bg_offy_up, bg_offy_dn, bg_eol_width, clip_rect, bg_color);
+#else
             const char* text_selected_begin = buf_display + ImMin(state->Stb->select_start, state->Stb->select_end);
             const char* text_selected_end = buf_display + ImMax(state->Stb->select_start, state->Stb->select_end);
             for (int line_n = line_visible_n0; line_n < line_visible_n1; line_n++)
@@ -5743,6 +5827,7 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
                 rect.ClipWith(clip_rect);
                 draw_window->DrawList->AddRectFilled(rect.Min, rect.Max, bg_color);
             }
+#endif // DALAMUD_CUSTOM
         }
     }
 
@@ -5753,12 +5838,29 @@ bool ImGui::InputTextEx(const char* label, const char* hint, char* buf, int buf_
 
     // Render text
     if ((is_multiline || (buf_display_end - buf_display) < buf_display_max_length) && (text_col & IM_COL32_A_MASK) && (line_visible_n0 < line_visible_n1))
+#ifdef DALAMUD_CUSTOM
+    {
+        ImTextDesc desc;
+        GetTextDesc(&desc, wrap_width, ImTextLayoutFlags_WrapKeepBlanks);
+        const ImVec4 clip_rect_v4 = clip_rect.AsVec4();
+        if (is_wordwrap) // Laid out per logical line, as the line index was.
+            InputTextRenderWrapped(draw_window->DrawList, line_index, buf_display, buf_display_end, wrap_width, line_visible_n0, line_visible_n1, draw_pos - draw_scroll, text_col, clip_rect_v4);
+        else
+            AddTextEx(draw_window->DrawList, g.Font, &desc,
+                draw_pos - draw_scroll + ImVec2(0.0f, line_visible_n0 * g.FontSize),
+                text_col,
+                line_index->get_line_begin(buf_display, line_visible_n0),
+                line_index->get_line_end(buf_display, line_visible_n1 - 1),
+                &clip_rect_v4, ImTextRenderFlags_CpuFineClip);
+    }
+#else
         g.Font->RenderText(draw_window->DrawList, g.FontSize,
             draw_pos - draw_scroll + ImVec2(0.0f, line_visible_n0 * g.FontSize),
             text_col, clip_rect.AsVec4(),
             line_index->get_line_begin(buf_display, line_visible_n0),
             line_index->get_line_end(buf_display, line_visible_n1 - 1),
             wrap_width, ImDrawTextFlags_WrapKeepBlanks | ImDrawTextFlags_CpuFineClip);
+#endif // DALAMUD_CUSTOM
 
     // Render blinking cursor
     if (render_cursor)
@@ -6183,14 +6285,23 @@ bool ImGui::ColorPicker3(const char* label, float col[3], ImGuiColorEditFlags fl
     return true;
 }
 
+// Helper for RenderArrowsForVerticalBar(). 'pos' is position of the arrow tip. half_sz.x is length from base to tip. half_sz.y is length on each side.
+static void RenderArrowPointingAt(ImDrawList* draw_list, ImVec2 p, ImVec2 half_sz, ImGuiDir direction, ImU32 col)
+{
+    if (direction == ImGuiDir_Left)  { draw_list->AddTriangleFilled(ImVec2(p.x + half_sz.x, p.y - half_sz.y), ImVec2(p.x + half_sz.x, p.y + half_sz.y), p, col); }
+    if (direction == ImGuiDir_Right) { draw_list->AddTriangleFilled(ImVec2(p.x - half_sz.x, p.y + half_sz.y), ImVec2(p.x - half_sz.x, p.y - half_sz.y), p, col); }
+    //if (direction == ImGuiDir_Up)  { draw_list->AddTriangleFilled(ImVec2(p.x + half_sz.x, p.y + half_sz.y), ImVec2(p.x - half_sz.x, p.y + half_sz.y), p, col); }
+    //if (direction == ImGuiDir_Down){ draw_list->AddTriangleFilled(ImVec2(p.x - half_sz.x, p.y - half_sz.y), ImVec2(p.x + half_sz.x, p.y - half_sz.y), p, col); }
+}
+
 // Helper for ColorPicker4()
-static void RenderArrowsForVerticalBar(ImDrawList* draw_list, ImVec2 pos, ImVec2 half_sz, float bar_w, float alpha)
+static void RenderArrowsForVerticalBar(ImDrawList* draw_list, ImVec2 p, ImVec2 half_sz, float bar_w, float alpha)
 {
     ImU32 alpha8 = IM_F32_TO_INT8_SAT(alpha);
-    ImGui::RenderArrowPointingAt(draw_list, ImVec2(pos.x + half_sz.x + 1,         pos.y), ImVec2(half_sz.x + 2, half_sz.y + 1), ImGuiDir_Right, IM_COL32(0,0,0,alpha8));
-    ImGui::RenderArrowPointingAt(draw_list, ImVec2(pos.x + half_sz.x,             pos.y), half_sz,                              ImGuiDir_Right, IM_COL32(255,255,255,alpha8));
-    ImGui::RenderArrowPointingAt(draw_list, ImVec2(pos.x + bar_w - half_sz.x - 1, pos.y), ImVec2(half_sz.x + 2, half_sz.y + 1), ImGuiDir_Left,  IM_COL32(0,0,0,alpha8));
-    ImGui::RenderArrowPointingAt(draw_list, ImVec2(pos.x + bar_w - half_sz.x,     pos.y), half_sz,                              ImGuiDir_Left,  IM_COL32(255,255,255,alpha8));
+    RenderArrowPointingAt(draw_list, ImVec2(p.x + half_sz.x + 1,         p.y), ImVec2(half_sz.x + 2, half_sz.y + 1), ImGuiDir_Right, IM_COL32(0,0,0,alpha8));
+    RenderArrowPointingAt(draw_list, ImVec2(p.x + half_sz.x,             p.y), half_sz,                              ImGuiDir_Right, IM_COL32(255,255,255,alpha8));
+    RenderArrowPointingAt(draw_list, ImVec2(p.x + bar_w - half_sz.x - 1, p.y), ImVec2(half_sz.x + 2, half_sz.y + 1), ImGuiDir_Left,  IM_COL32(0,0,0,alpha8));
+    RenderArrowPointingAt(draw_list, ImVec2(p.x + bar_w - half_sz.x,     p.y), half_sz,                              ImGuiDir_Left,  IM_COL32(255,255,255,alpha8));
 }
 
 // Note: ColorPicker4() only accesses 3 floats if ImGuiColorEditFlags_NoAlpha flag is set.
@@ -6929,13 +7040,15 @@ bool ImGui::TreeNodeExV(const void* ptr_id, ImGuiTreeNodeFlags flags, const char
     return TreeNodeBehavior(id, flags, label, label_end);
 }
 
-// The reason those two functions are not yet in public API is because I would like to design a more feature-full and generic API for this.
-// They are otherwise function (cc: #3823, #9251, #7553, #6754, #5423, #2958, #2079, #1947, #1131, #722)
-bool ImGui::TreeNodeGetOpen(ImGuiID storage_id)
+// I would like to design a more feature-full and generic API for this.
+// (cc: #3823, #9251, #7553, #6754, #5423, #2958, #2079, #1947, #1131, #722, #9569)
+bool ImGui::TreeNodeGetOpen(ImGuiID storage_id, ImGuiTreeNodeFlags flags)
 {
+    if (flags & ImGuiTreeNodeFlags_Leaf)
+        return true;
     ImGuiContext& g = *GImGui;
     ImGuiStorage* storage = g.CurrentWindow->DC.StateStorage;
-    return storage->GetInt(storage_id, 0) != 0;
+    return storage->GetInt(storage_id, (flags & ImGuiTreeNodeFlags_DefaultOpen) ? 1 : 0) != 0;
 }
 
 void ImGui::TreeNodeSetOpen(ImGuiID storage_id, bool is_open)
@@ -7037,9 +7150,10 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
         label_end = FindRenderedTextEnd(label);
     const ImVec2 label_size = CalcTextSize(label, label_end, false);
 
-    const float text_offset_x = g.FontSize + (display_frame ? padding.x * 3 : padding.x * 2);   // Collapsing arrow width + Spacing
+    const float icon_width = g.FontSize + padding.x * 2;
+    const float text_offset_x = display_frame ? icon_width + padding.x : icon_width;    // Collapsing arrow width + Spacing
     const float text_offset_y = use_frame_padding ? ImMax(style.FramePadding.y, window->DC.CurrLineTextBaseOffset) : window->DC.CurrLineTextBaseOffset; // Latch before ItemSize changes it
-    const float text_width = g.FontSize + label_size.x + padding.x * 2;                         // Include collapsing arrow
+    const float text_width = icon_width + label_size.x;                                 // Include collapsing arrow
 
     const float frame_height = label_size.y + padding.y * 2;
     const bool span_all_columns = (flags & ImGuiTreeNodeFlags_SpanAllColumns) != 0 && (g.CurrentTable != NULL);
@@ -7072,6 +7186,7 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
     if (span_all_columns || span_all_columns_label)
     {
         // Modify ClipRect for the ItemAdd(), faster than doing a PushColumnsBackground/PushTableBackgroundChannel for every Selectable..
+        // FIXME: Investigate moving this to an item flag, along duplicate code in Selectable(). How to do optimally?
         const float backup_clip_rect_min_x = window->ClipRect.Min.x;
         const float backup_clip_rect_max_x = window->ClipRect.Max.x;
         window->ClipRect.Min.x = window->ParentWorkRect.Min.x;
@@ -7279,7 +7394,7 @@ bool ImGui::TreeNodeBehavior(ImGuiID id, ImGuiTreeNodeFlags flags, const char* l
             if (flags & ImGuiTreeNodeFlags_Bullet)
                 RenderBullet(window->DrawList, ImVec2(text_pos.x - text_offset_x * 0.5f, text_pos.y + g.FontSize * 0.5f), text_col);
             else if (!is_leaf)
-                RenderArrow(window->DrawList, ImVec2(text_pos.x - text_offset_x + padding.x, text_pos.y + g.FontSize * 0.15f), text_col, is_open ? ((flags & ImGuiTreeNodeFlags_UpsideDownArrow) ? ImGuiDir_Up : ImGuiDir_Down) : ImGuiDir_Right, 0.70f);
+                RenderArrow(window->DrawList, ImVec2(text_pos.x + g.FontSize * 0.15f - text_offset_x + padding.x, text_pos.y + g.FontSize * 0.15f), text_col, is_open ? ((flags & ImGuiTreeNodeFlags_UpsideDownArrow) ? ImGuiDir_Up : ImGuiDir_Down) : ImGuiDir_Right, 0.70f);
             if (g.LogEnabled)
                 LogSetNextTextDecoration(">", NULL);
         }
@@ -8797,7 +8912,7 @@ bool ImGuiSelectionBasicStorage::GetNextSelectedItem(void** opaque_it, ImGuiID* 
         it = _Storage.Data.Data;
     IM_ASSERT(it >= _Storage.Data.Data && it <= it_end);
     if (it != it_end)
-        while (it->val_i == 0 && it < it_end)
+        while (it < it_end && it->val_i == 0)
             it++;
     const bool has_more = (it != it_end);
     *opaque_it = has_more ? (void**)(it + 1) : (void**)(it);
@@ -10073,7 +10188,7 @@ void    ImGui::EndTabBar()
 
     // Restore the last visible height if no tab is visible, this reduce vertical flicker/movement when a tabs gets removed without calling SetTabItemClosed().
     const bool tab_bar_appearing = (tab_bar->PrevFrameVisible + 1 < g.FrameCount);
-    if (tab_bar->VisibleTabWasSubmitted || tab_bar->VisibleTabId == 0 || tab_bar_appearing)
+    if (tab_bar->VisibleTabWasSubmitted || tab_bar->VisibleTabContentsId == 0 || tab_bar_appearing)
     {
         tab_bar->CurrTabsContentsHeight = ImMax(window->DC.CursorPos.y - tab_bar->BarRect.Max.y, tab_bar->CurrTabsContentsHeight);
         window->DC.CursorPos.y = tab_bar->BarRect.Max.y + tab_bar->CurrTabsContentsHeight;
@@ -10121,7 +10236,7 @@ static void ImGui::TabBarLayout(ImGuiTabBar* tab_bar)
         if (tab->LastFrameVisible < tab_bar->PrevFrameVisible || tab->WantClose)
         {
             // Remove tab
-            if (tab_bar->VisibleTabId == tab->ID) { tab_bar->VisibleTabId = 0; }
+            if (tab_bar->VisibleTabContentsId == tab->ID) { tab_bar->VisibleTabContentsId = 0; }
             if (tab_bar->SelectedTabId == tab->ID) { tab_bar->SelectedTabId = 0; }
             if (tab_bar->NextSelectedTabId == tab->ID) { tab_bar->NextSelectedTabId = 0; }
             continue;
@@ -10326,12 +10441,12 @@ static void ImGui::TabBarLayout(ImGuiTabBar* tab_bar)
         scroll_to_tab_id = tab_bar->SelectedTabId = most_recently_selected_tab->ID;
 
     // Lock in visible tab
-    tab_bar->VisibleTabId = tab_bar->SelectedTabId;
-    tab_bar->VisibleTabWasSubmitted = false;
+    tab_bar->VisibleTabContentsId = tab_bar->SelectedTabId;
+    tab_bar->VisibleTabWasSubmitted = tab_bar->LastTabItemContentsAppearing = false;
 
     // CTRL+TAB can override visible tab temporarily
     if (g.NavWindowingTarget != NULL && g.NavWindowingTarget->DockNode && g.NavWindowingTarget->DockNode->TabBar == tab_bar)
-        tab_bar->VisibleTabId = scroll_to_tab_id = g.NavWindowingTarget->TabId;
+        tab_bar->VisibleTabContentsId = scroll_to_tab_id = g.NavWindowingTarget->TabId;
 
     // Apply request requests
     if (scroll_to_tab_id != 0)
@@ -10481,9 +10596,9 @@ void ImGui::TabBarRemoveTab(ImGuiTabBar* tab_bar, ImGuiID tab_id)
 {
     if (ImGuiTabItem* tab = TabBarFindTabByID(tab_bar, tab_id))
         tab_bar->Tabs.erase(tab);
-    if (tab_bar->VisibleTabId == tab_id)      { tab_bar->VisibleTabId = 0; }
-    if (tab_bar->SelectedTabId == tab_id)     { tab_bar->SelectedTabId = 0; }
-    if (tab_bar->NextSelectedTabId == tab_id) { tab_bar->NextSelectedTabId = 0; }
+    if (tab_bar->VisibleTabContentsId == tab_id){ tab_bar->VisibleTabContentsId = 0; }
+    if (tab_bar->SelectedTabId == tab_id)       { tab_bar->SelectedTabId = 0; }
+    if (tab_bar->NextSelectedTabId == tab_id)   { tab_bar->NextSelectedTabId = 0; }
 }
 
 // Called on manual closure attempt
@@ -10497,7 +10612,7 @@ void ImGui::TabBarCloseTab(ImGuiTabBar* tab_bar, ImGuiTabItem* tab)
         // This will remove a frame of lag for selecting another tab on closure.
         // However we don't run it in the case where the 'Unsaved' flag is set, so user gets a chance to fully undo the closure
         tab->WantClose = true;
-        if (tab_bar->VisibleTabId == tab->ID)
+        if (tab_bar->VisibleTabContentsId == tab->ID)
         {
             tab->LastFrameVisible = -1;
             tab_bar->SelectedTabId = tab_bar->NextSelectedTabId = 0;
@@ -10506,7 +10621,7 @@ void ImGui::TabBarCloseTab(ImGuiTabBar* tab_bar, ImGuiTabItem* tab)
     else
     {
         // Actually select before expecting closure attempt (on an UnsavedDocument tab user is expect to e.g. show a popup)
-        if (tab_bar->VisibleTabId != tab->ID)
+        if (tab_bar->VisibleTabContentsId != tab->ID)
             TabBarQueueFocus(tab_bar, tab);
     }
 }
@@ -10797,6 +10912,12 @@ void    ImGui::EndTabItem()
         PopID();
 }
 
+bool    ImGui::TabItemIsContentsAppearing()
+{
+    ImGuiContext& g = *GImGui;
+    return g.CurrentTabBar->LastTabItemContentsAppearing;
+}
+
 bool    ImGui::TabItemButton(const char* label, ImGuiTabItemFlags flags)
 {
     ImGuiContext& g = *GImGui;
@@ -10911,21 +11032,24 @@ bool    ImGui::TabItemEx(ImGuiTabBar* tab_bar, const char* label, bool* p_open, 
             TabBarQueueFocus(tab_bar, tab);
     }
 
+    // On the very first frame of a tab bar we let first tab contents be visible to minimize appearing glitches
+    if (tab_bar->VisibleTabContentsId == 0 && tab_bar->SelectedTabId == 0 && tab_bar_appearing && docked_window == NULL)
+        if (tab_bar->Tabs.Size == 1 && !(tab_bar->Flags & ImGuiTabBarFlags_AutoSelectNewTabs))
+            tab_bar->VisibleTabContentsId = id;
+
     // Lock visibility
     // (Note: tab_contents_visible != tab_selected... because Ctrl+Tab operations may preview some tabs without selecting them!)
-    bool tab_contents_visible = (tab_bar->VisibleTabId == id);
+    const bool tab_contents_visible = (tab_bar->VisibleTabContentsId == id);
     if (tab_contents_visible)
         tab_bar->VisibleTabWasSubmitted = true;
-
-    // On the very first frame of a tab bar we let first tab contents be visible to minimize appearing glitches
-    if (!tab_contents_visible && tab_bar->SelectedTabId == 0 && tab_bar_appearing && docked_window == NULL)
-        if (tab_bar->Tabs.Size == 1 && !(tab_bar->Flags & ImGuiTabBarFlags_AutoSelectNewTabs))
-            tab_contents_visible = true;
+    tab_bar->LastTabItemContentsAppearing = tab_contents_visible && !tab->ContentsIsVisible;
+    tab->ContentsIsVisible = tab_contents_visible;
 
     // Note that tab_is_new is not necessarily the same as tab_appearing! When a tab bar stops being submitted
     // and then gets submitted again, the tabs will have 'tab_appearing=true' but 'tab_is_new=false'.
     if (tab_appearing && (!tab_bar_appearing || tab_is_new))
     {
+        // This path doesn't render the tab.
         ItemAdd(ImRect(), id, NULL, ImGuiItemFlags_NoNav);
         if (is_tab_button)
             return false;
@@ -11292,5 +11416,16 @@ void ImGui::TabItemLabelAndCloseButton(ImDrawList* draw_list, const ImRect& bb, 
         *out_just_closed = close_button_pressed;
 }
 
+#ifdef DALAMUD_CUSTOM
+void ImGui::Custom_StbTextMakeUndoReplace(ImGuiInputTextState* str, int where, int old_length, int new_length)
+{
+    ImStb::stb_text_makeundo_replace(str, str->Stb, where, old_length, new_length);
+}
+
+void ImGui::Custom_StbTextUndo(ImGuiInputTextState* str)
+{
+    ImStb::stb_text_undo(str, str->Stb);
+}
+#endif // DALAMUD_CUSTOM
 
 #endif // #ifndef IMGUI_DISABLE

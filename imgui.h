@@ -30,7 +30,7 @@
 // Library Version
 // (Integer encoded as XYYZZ for use in #if preprocessor conditionals, e.g. '#if IMGUI_VERSION_NUM >= 12345')
 #define IMGUI_VERSION       "1.93.1 WIP"
-#define IMGUI_VERSION_NUM   19301
+#define IMGUI_VERSION_NUM   19302
 #define IMGUI_HAS_TABLE             // Added BeginTable() - from IMGUI_VERSION_NUM >= 18000
 #define IMGUI_HAS_TEXTURES          // Added ImGuiBackendFlags_RendererHasTextures - from IMGUI_VERSION_NUM >= 19198
 #define IMGUI_HAS_VIEWPORT          // In 'docking' WIP branch.
@@ -396,6 +396,9 @@ struct ImTextureRef
 };
 IM_MSVC_RUNTIME_CHECKS_RESTORE
 
+#ifdef DALAMUD_CUSTOM
+#include "imgui_dalamud_text.h"
+#endif // DALAMUD_CUSTOM
 //-----------------------------------------------------------------------------
 // [SECTION] Dear ImGui end-user API functions
 // (Note that ImGui:: being a namespace, you can add extra ImGui:: functions in your own separate file. Please don't modify imgui source files!)
@@ -429,7 +432,11 @@ namespace ImGui
     IMGUI_API void          ShowAboutWindow(bool* p_open = NULL);       // create About window. display Dear ImGui version, credits and build/system information.
     IMGUI_API void          ShowStyleEditor(ImGuiStyle* ref = NULL);    // add style editor block (not a window). you can pass in a reference ImGuiStyle structure to compare to, revert to and save to (else it uses the default style)
     IMGUI_API bool          ShowStyleSelector(const char* label);       // add style selector block (not a window), essentially a combo listing the default styles.
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     IMGUI_API void          ShowFontSelector(const char* label);        // add font selector block (not a window), essentially a combo listing the loaded fonts.
+#endif // DALAMUD_CUSTOM
     IMGUI_API void          ShowUserGuide();                            // add basic help/info block (not a window): how to manipulate ImGui as an end-user (mouse/keyboard controls).
     IMGUI_API const char*   GetVersion();                               // get the compiled version string e.g. "1.80 WIP" (essentially the value for IMGUI_VERSION from the compiled version of imgui.cpp)
 
@@ -543,7 +550,11 @@ namespace ImGui
     IMGUI_API void          PopFont();
     IMGUI_API ImFont*       GetFont();                                                      // get current font
     IMGUI_API float         GetFontSize();                                                  // get current scaled font size (= height in pixels). AFTER global scale factors applied. *IMPORTANT* DO NOT PASS THIS VALUE TO PushFont()! Use ImGui::GetStyle().FontSizeBase to get value before global scale factors.
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     IMGUI_API ImFontBaked*  GetFontBaked();                                                 // get current font bound at current size // == GetFont()->GetFontBaked(GetFontSize())
+#endif // DALAMUD_CUSTOM
 
     // Parameters stacks (shared)
     IMGUI_API void          PushStyleColor(ImGuiCol idx, ImU32 col);                        // modify a style color. always use this if you modify the style after NewFrame().
@@ -777,7 +788,7 @@ namespace ImGui
     IMGUI_API bool          CollapsingHeader(const char* label, bool* p_visible, ImGuiTreeNodeFlags flags = 0); // when 'p_visible != NULL': if '*p_visible==true' display an additional small close button on upper right of the header which will set the bool to false when clicked, if '*p_visible==false' don't display the header.
     IMGUI_API void          SetNextItemOpen(bool is_open, ImGuiCond cond = 0);                  // set next TreeNode/CollapsingHeader open state.
     IMGUI_API void          SetNextItemStorageID(ImGuiID storage_id);                           // set id to use for open/close storage (default to same as item id).
-    IMGUI_API bool          TreeNodeGetOpen(ImGuiID storage_id);                                // retrieve tree node open/close state.
+    IMGUI_API bool          TreeNodeGetOpen(ImGuiID storage_id, ImGuiTreeNodeFlags flags = 0);  // retrieve tree node open/close state.
 
     // Widgets: Selectables
     // - A selectable highlights when hovered, and can display another color when selected.
@@ -1330,6 +1341,9 @@ enum ImGuiItemFlags_
     //   - If you use MixedMode and the simplest solution is to ensure LiveEdit is off but widgets where this applies.
     //---------------------------------------------------------------------------------
     ImGuiItemFlags_MixedValue               = 1 << 9,   // false    // [BETA] Represent a mixed/indeterminate value. Replace value label with "-" and apply edits on validation.
+#ifdef DALAMUD_CUSTOM
+    ImGuiItemFlags_ParseLabelFromEnd        = 1 << 18,  // false    // Labels/string IDs are parsed from the end.
+#endif // DALAMUD_CUSTOM
 };
 
 // Flags for ImGui::InputText()
@@ -2089,6 +2103,10 @@ enum ImGuiMouseButton_
     ImGuiMouseButton_Left = 0,
     ImGuiMouseButton_Right = 1,
     ImGuiMouseButton_Middle = 2,
+#ifdef DALAMUD_CUSTOM
+    ImGuiMouseButton_X1 = 3,
+    ImGuiMouseButton_X2 = 4,
+#endif // DALAMUD_CUSTOM
     ImGuiMouseButton_COUNT = 5
 };
 
@@ -2483,6 +2501,10 @@ struct ImGuiStyle
     bool        DockingNodeHasCloseButton;  // Docking node has their own CloseButton() to close all docked windows.
     float       DockingSeparatorSize;       // Thickness of resizing border between docked windows
     float       MouseCursorScale;           // Scale software rendered mouse cursor (when io.MouseDrawCursor is enabled). We apply per-monitor DPI scaling over this scale. May be removed later.
+
+    // Symbols
+    ImVec2      SymbolArrowSizeFactor;      // Width/height factor of arrows (0.0f..1.0f).
+    float       SymbolArrowThicknessFactor; // Thickness factor of arrows (0.0f..0.5f). 0.0f=Fill. >0.0f=Stroke.
 
     // Rendering & Tessellation
     bool        AntiAliasedLines;           // Enable anti-aliased lines/borders. Used at the beginning of the frame to set ImDrawFlags_AALines in all draw-lists.
@@ -3407,6 +3429,9 @@ struct ImDrawVert
     ImVec2  pos;
     ImVec2  uv;
     ImU32   col;
+#ifdef DALAMUD_CUSTOM
+    ImU32   ext[11];        // Opaque, except for the first item where 0 means the rest is unused.
+#endif // DALAMUD_CUSTOM
 };
 #else
 // You can override the vertex format layout by defining IMGUI_OVERRIDE_DRAWVERT_STRUCT_LAYOUT in imconfig.h
@@ -3525,7 +3550,8 @@ enum ImDrawFlags_
     ImDrawFlags_RoundCornersTop         = ImDrawFlags_RoundTop,
     ImDrawFlags_RoundCornersBottom      = ImDrawFlags_RoundBottom,
     ImDrawFlags_RoundCornersLeft        = ImDrawFlags_RoundLeft,
-    ImDrawFlags_RoundCornersRight       = ImDrawFlags_RoundRight,      
+    ImDrawFlags_RoundCornersRight       = ImDrawFlags_RoundRight,
+    ImDrawFlags_RoundCornersMask_       = ImDrawFlags_RoundMask_,
 #endif
 };
 
@@ -3833,6 +3859,9 @@ struct ImTextureData
 // [SECTION] Font API (ImFontConfig, ImFontGlyph, ImFontAtlasFlags, ImFontAtlas, ImFontGlyphRangesBuilder, ImFont)
 //-----------------------------------------------------------------------------
 
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 // A font input/source (we may rename this to ImFontSource in the future)
 struct ImFontConfig
 {
@@ -4202,6 +4231,7 @@ struct ImFont
     IMGUI_API bool              IsGlyphRangeUnused(unsigned int c_begin, unsigned int c_last);
     //inline void               AddRemapChar(ImWchar from_codepoint, ImWchar to_codepoint) { AddRemapCodepoint(from_codepoint, to_codepoint); } // Renamed in 1.93.0 (Sep 2026)
 };
+#endif // DALAMUD_CUSTOM
 
 // This is provided for consistency (but we don't actually use this)
 inline ImTextureID ImTextureRef::GetTexID() const
@@ -4500,8 +4530,12 @@ namespace ImGui
 {
     // OBSOLETED in 1.92.9 (from July 2026)
     IMGUI_API void      SetColorEditOptions(ImGuiColorEditFlags flags);         // set current options for if you want to select a default format, picker type, etc. User will be able to change those settings, unless you pass the _NoOptions flag to your calls.
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
     // OBSOLETED in 1.92.0 (from June 2025)
     inline void         PushFont(ImFont* font)                                  { PushFont(font, font ? font->LegacySize : 0.0f); }
+#endif // DALAMUD_CUSTOM
     IMGUI_API void      SetWindowFontScale(float scale);                        // Set font scale factor for current window. Prefer using PushFont(NULL, style.FontSizeBase * factor) or use style.FontScaleMain to scale all windows.
     // OBSOLETED in 1.91.9 (from February 2025)
     IMGUI_API void      Image(ImTextureRef tex_ref, const ImVec2& image_size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col); // <-- 'border_col' was removed in favor of ImGuiCol_ImageBorder. If you use 'tint_col', use ImageWithBg() instead.
@@ -4607,11 +4641,15 @@ enum ImDrawListFlags_
 };
 
 //-- OBSOLETED in 1.92.0: ImFontAtlasCustomRect becomes ImTextureRect
+#ifdef DALAMUD_CUSTOM
+/* removed */
+#else
 // - ImFontAtlasCustomRect::X,Y          --> ImTextureRect::x,y
 // - ImFontAtlasCustomRect::Width,Height --> ImTextureRect::w,h
 // - ImFontAtlasCustomRect::GlyphColored --> if you need to write to this, instead you can write to 'font->Glyphs.back()->Colored' after calling AddCustomRectFontGlyph()
 // We could make ImTextureRect an union to use old names, but 1) this would be confusing 2) the fix is easy 3) ImFontAtlasCustomRect was always a rather esoteric api.
 typedef ImFontAtlasRect ImFontAtlasCustomRect;
+#endif // DALAMUD_CUSTOM
 /*struct ImFontAtlasCustomRect
 {
     unsigned short  X, Y;           // Output   // Packed position in Atlas
